@@ -1,0 +1,19 @@
+{
+  "name": "Dynamics 365 Contact Center",
+  "author": { "name": "Community", "email": "noreply@example.com" },
+  "defaultLocale": "en",
+  "private": true,
+  "version": "1.0.0",
+  "frameworkVersion": "2.0",
+  "location": {
+    "support": {
+      "top_bar": { "url": "assets/widget.html", "flexible": true },
+      "background": { "url": "assets/background.html" }
+    }
+  },
+  "parameters": [
+    { "name": "d365_url", "type": "text", "required": true, "label": "Dynamics 365 environment URL", "helpText": "For example https://contoso.crm.dynamics.com (no path, no trailing slash)" },
+    { "name": "call_tag", "type": "text", "required": false, "default": "d365cc", "label": "Call ticket tag", "helpText": "Tickets with this tag are opened for the agent. Must match the tag set by the Dynamics 365 flow." },
+    { "name": "popup_max_age_minutes", "type": "text", "required": false, "default": "5", "label": "Open tickets newer than (minutes)", "helpText": "Only tickets created within this time are opened automatically." }
+  ]
+}

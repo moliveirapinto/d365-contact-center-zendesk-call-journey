@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
+</head><body>
+<script>
+// Opens a ticket for every new call ticket (tag d365cc) that the D365 flow creates.
+var client = ZAFClient.init();
+var TAG = 'd365cc', MAX_AGE_MS = 5 * 60 * 1000, POLL_MS = 5000;
+client.metadata().then(function (m) {
+  var s = m.settings || {};
+  if (s.call_tag) TAG = String(s.call_tag).trim();
+  var mins = parseFloat(s.popup_max_age_minutes);
+  if (mins > 0) MAX_AGE_MS = mins * 60 * 1000;
+});
+var seen = {};
+var me = null;
+
+function age(t) { return Date.now() - new Date(t.created_at).getTime(); }
+
+function popTicket(t) {
+  seen[t.id] = true;
+  var claim = t.assignee_id ? Promise.resolve() : client.request({
+    url: '/api/v2/tickets/' + t.id + '.json', type: 'PUT', contentType: 'application/json',
+    data: JSON.stringify({ ticket: { assignee_id: me } })
+  });
+  claim.then(function () {
+    client.invoke('routeTo', 'ticket', t.id);
+    client.invoke('notify', 'Incoming call: ticket #' + t.id, 'notice', { sticky: false });
+  });
+}
+
+function poll() {
+  client.request({ url: '/api/v2/tickets.json?sort_by=created_at&sort_order=desc&per_page=10' }).then(function (res) {
+    (res.tickets || []).forEach(function (t) {
+      if (seen[t.id] || (t.tags || []).indexOf(TAG) < 0 || age(t) > MAX_AGE_MS) return;
+      if (t.assignee_id && t.assignee_id !== me) { seen[t.id] = true; return; }
+      popTicket(t);
+    });
+  }, function () {});
+}
+
+client.get('currentUser.id').then(function (d) {
+  me = d['currentUser.id'];
+  poll();
+  setInterval(poll, POLL_MS);
+});
+</script>
+</body></html>
+

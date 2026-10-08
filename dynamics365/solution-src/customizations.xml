@@ -1,0 +1,59 @@
+<ImportExportXml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" OrganizationVersion="9.2.26085.172" OrganizationSchemaType="Full" CRMServerServiceabilityVersion="9.2.26085.00172">
+  <Entities></Entities>
+  <Roles></Roles>
+  <Workflows>
+    <Workflow WorkflowId="{d6a0e1b4-5c2f-4f6b-9a41-7a1d3c8e2f10}" Name="D365 Contact Center - Create Zendesk ticket when an agent accepts a call" Description="Creates a Zendesk ticket (tag d365cc) for each voice call an agent accepts; the Zendesk app opens it for the agent.">
+      <JsonFileName>/Workflows/D365ContactCenter-CreateZendeskticketwhenanagentacce-D6A0E1B4-5C2F-4F6B-9A41-7A1D3C8E2F10.json</JsonFileName>
+      <Type>1</Type>
+      <Subprocess>0</Subprocess>
+      <Category>5</Category>
+      <Mode>0</Mode>
+      <Scope>4</Scope>
+      <OnDemand>0</OnDemand>
+      <TriggerOnCreate>0</TriggerOnCreate>
+      <TriggerOnDelete>0</TriggerOnDelete>
+      <AsyncAutodelete>0</AsyncAutodelete>
+      <SyncWorkflowLogOnFailure>0</SyncWorkflowLogOnFailure>
+      <StateCode>0</StateCode>
+      <StatusCode>1</StatusCode>
+      <RunAs>1</RunAs>
+      <IsTransacted>1</IsTransacted>
+      <IntroducedVersion>1.0.0.0</IntroducedVersion>
+      <IsCustomizable>1</IsCustomizable>
+      <BusinessProcessType>0</BusinessProcessType>
+      <IsCustomProcessingStepAllowedForOtherPublishers>1</IsCustomProcessingStepAllowedForOtherPublishers>
+      <ModernFlowType>0</ModernFlowType>
+      <PrimaryEntity>none</PrimaryEntity>
+      <LocalizedNames>
+        <LocalizedName languagecode="1033" description="D365 Contact Center - Create Zendesk ticket when an agent accepts a call" />
+      </LocalizedNames>
+      <Descriptions>
+        <Description languagecode="1033" description="Creates a Zendesk ticket (tag d365cc) for each voice call an agent accepts; the Zendesk app opens it for the agent." />
+      </Descriptions>
+    </Workflow>
+  </Workflows>
+  <FieldSecurityProfiles></FieldSecurityProfiles>
+  <Templates />
+  <EntityMaps />
+  <EntityRelationships />
+  <OrganizationSettings />
+  <optionsets />
+  <CustomControls />
+  <EntityDataProviders />
+  <connectionreferences>
+    <connectionreference connectionreferencelogicalname="cczd_dataverse">
+      <connectionreferencedisplayname>D365 Contact Center - Dataverse (Zendesk)</connectionreferencedisplayname>
+      <connectorid>/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps</connectorid>
+      <description>Dataverse connection used by the D365 Contact Center to Zendesk flow</description>
+      <iscustomizable>1</iscustomizable>
+      <promptingbehavior>0</promptingbehavior>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </connectionreference>
+  </connectionreferences>
+  <Languages>
+    <Language>1033</Language>
+    <Language>1046</Language>
+    <Language>3082</Language>
+  </Languages>
+</ImportExportXml>

@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
+<style>html,body{margin:0;height:100%;font-family:Segoe UI,Arial,sans-serif}#err{display:none;padding:12px;font-size:13px;color:#b00020}iframe{border:0;width:100%;height:100%;display:block}</style>
+</head><body>
+<div id="err">Enter your Dynamics 365 environment URL in the app settings (Admin Center &gt; Apps and integrations &gt; Zendesk Support apps).</div>
+<iframe id="w" allow="microphone; camera; autoplay; clipboard-write" title="Dynamics 365 Contact Center"></iframe>
+<script>
+var client = ZAFClient.init();
+var w = Math.min(1200, Math.max(600, screen.availWidth - 80)), h = Math.min(720, Math.max(500, screen.availHeight - 200));
+client.invoke('resize', { width: w + 'px', height: h + 'px' });
+document.documentElement.style.height = h + 'px';
+client.metadata().then(function (m) {
+  var org = String((m.settings && m.settings.d365_url) || '').trim().replace(/\/+$/, '');
+  if (!/^https:\/\/[^\/]+\.dynamics\.com$/i.test(org)) { document.getElementById('w').style.display = 'none'; document.getElementById('err').style.display = 'block'; return; }
+  document.getElementById('w').src = 'https://ccaas-embed-prod.azureedge.net/widget/index.html?dynamicsUrl=' + encodeURIComponent(org).replace(/%3A/g, ':').replace(/%2F/g, '/');
+});
+</script>
+</body></html>

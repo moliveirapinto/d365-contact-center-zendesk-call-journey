@@ -1,0 +1,13 @@
+<environmentvariabledefinition schemaname="cczd_ZendeskClientSecret">
+  <description default="Secret of the Zendesk OAuth client. Set it after import; consider moving it to Azure Key Vault.">
+    <label description="Secret of the Zendesk OAuth client. Set it after import; consider moving it to Azure Key Vault." languagecode="1033" />
+  </description>
+  <displayname default="Zendesk OAuth Client Secret">
+    <label description="Zendesk OAuth Client Secret" languagecode="1033" />
+  </displayname>
+  <introducedversion>1.0.0.0</introducedversion>
+  <iscustomizable>1</iscustomizable>
+  <isrequired>0</isrequired>
+  <secretstore>0</secretstore>
+  <type>100000000</type>
+</environmentvariabledefinition>

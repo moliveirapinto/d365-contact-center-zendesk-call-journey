@@ -1,0 +1,225 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "cczd_dataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Zendesk Subdomain (cczd_ZendeskSubdomain)": {
+          "defaultValue": "",
+          "type": "String",
+          "metadata": {
+            "schemaName": "cczd_ZendeskSubdomain"
+          }
+        },
+        "Zendesk OAuth Client ID (cczd_ZendeskClientId)": {
+          "defaultValue": "",
+          "type": "String",
+          "metadata": {
+            "schemaName": "cczd_ZendeskClientId"
+          }
+        },
+        "Zendesk OAuth Client Secret (cczd_ZendeskClientSecret)": {
+          "defaultValue": "",
+          "type": "String",
+          "metadata": {
+            "schemaName": "cczd_ZendeskClientSecret"
+          }
+        }
+      },
+      "triggers": {
+        "Every_minute": {
+          "type": "Recurrence",
+          "recurrence": {
+            "frequency": "Minute",
+            "interval": 1
+          }
+        }
+      },
+      "actions": {
+        "List_accepted_voice_calls": {
+          "runAfter": {},
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "entityName": "msdyn_ocliveworkitems",
+              "$select": "subject,msdyn_createdon,msdyn_activeagentassignedon,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_customer_value,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value",
+              "$filter": "msdyn_channel eq '192440000' and msdyn_activeagentassignedon ne null and createdon ge @{addMinutes(utcNow(), -30)}",
+              "$top": 20
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Get_Zendesk_token": {
+          "runAfter": {
+            "List_accepted_voice_calls": [
+              "Succeeded"
+            ]
+          },
+          "type": "Http",
+          "inputs": {
+            "method": "POST",
+            "uri": "https://@{parameters('Zendesk Subdomain (cczd_ZendeskSubdomain)')}.zendesk.com/oauth/tokens",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
+            "body": {
+              "grant_type": "client_credentials",
+              "client_id": "@parameters('Zendesk OAuth Client ID (cczd_ZendeskClientId)')",
+              "client_secret": "@parameters('Zendesk OAuth Client Secret (cczd_ZendeskClientSecret)')",
+              "scope": "read write"
+            }
+          }
+        },
+        "For_each_call": {
+          "runAfter": {
+            "Get_Zendesk_token": [
+              "Succeeded"
+            ]
+          },
+          "type": "Foreach",
+          "foreach": "@outputs('List_accepted_voice_calls')?['body/value']",
+          "actions": {
+            "Find_existing_ticket": {
+              "runAfter": {},
+              "type": "Http",
+              "inputs": {
+                "method": "GET",
+                "uri": "https://@{parameters('Zendesk Subdomain (cczd_ZendeskSubdomain)')}.zendesk.com/api/v2/tickets.json?external_id=@{items('For_each_call')?['activityid']}",
+                "headers": {
+                  "Accept": "application/json",
+                  "Authorization": "Bearer @{body('Get_Zendesk_token')?['access_token']}"
+                }
+              }
+            },
+            "Check_new_call": {
+              "runAfter": {
+                "Find_existing_ticket": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If",
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@length(body('Find_existing_ticket')?['tickets'])",
+                      0
+                    ]
+                  }
+                ]
+              },
+              "actions": {
+                "Get_customer": {
+                  "runAfter": {},
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "entityName": "contacts",
+                      "$select": "fullname,mobilephone,telephone1,emailaddress1",
+                      "$filter": "contactid eq '@{coalesce(items('For_each_call')?['_msdyn_customer_value'], '00000000-0000-0000-0000-000000000000')}'",
+                      "$top": 1
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Upsert_requester": {
+                  "runAfter": {
+                    "Get_customer": [
+                      "Succeeded",
+                      "Failed"
+                    ]
+                  },
+                  "type": "Http",
+                  "inputs": {
+                    "method": "POST",
+                    "uri": "https://@{parameters('Zendesk Subdomain (cczd_ZendeskSubdomain)')}.zendesk.com/api/v2/users/create_or_update.json",
+                    "headers": {
+                      "Content-Type": "application/json",
+                      "Accept": "application/json",
+                      "Authorization": "Bearer @{body('Get_Zendesk_token')?['access_token']}"
+                    },
+                    "body": {
+                      "user": {
+                        "name": "@coalesce(first(body('Get_customer')?['value'])?['fullname'], 'Unknown caller')",
+                        "email": "@coalesce(first(body('Get_customer')?['value'])?['emailaddress1'], 'unknown.caller@example.com')",
+                        "phone": "@coalesce(first(body('Get_customer')?['value'])?['mobilephone'], first(body('Get_customer')?['value'])?['telephone1'])",
+                        "role": "end-user"
+                      }
+                    }
+                  }
+                },
+                "Create_Zendesk_ticket": {
+                  "runAfter": {
+                    "Upsert_requester": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Http",
+                  "inputs": {
+                    "method": "POST",
+                    "uri": "https://@{parameters('Zendesk Subdomain (cczd_ZendeskSubdomain)')}.zendesk.com/api/v2/tickets.json",
+                    "headers": {
+                      "Content-Type": "application/json",
+                      "Accept": "application/json",
+                      "Authorization": "Bearer @{body('Get_Zendesk_token')?['access_token']}"
+                    },
+                    "body": {
+                      "ticket": {
+                        "subject": "Inbound call @{items('For_each_call')?['subject']}",
+                        "comment": {
+                          "body": "Inbound voice call received @{items('For_each_call')?['msdyn_createdon']}.\nQueue: @{items('For_each_call')?['_msdyn_cdsqueueid_value@OData.Community.Display.V1.FormattedValue']}\nAgent: @{items('For_each_call')?['_msdyn_activeagentid_value@OData.Community.Display.V1.FormattedValue']}\nD365 conversation: @{items('For_each_call')?['activityid']}",
+                          "public": false
+                        },
+                        "requester_id": "@body('Upsert_requester')?['user']?['id']",
+                        "external_id": "@{items('For_each_call')?['activityid']}",
+                        "tags": [
+                          "d365cc",
+                          "voice"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              }
+            }
+          }
+        }
+      },
+      "outputs": {}
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

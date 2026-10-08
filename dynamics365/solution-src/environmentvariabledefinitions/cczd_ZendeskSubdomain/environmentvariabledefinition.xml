@@ -1,0 +1,13 @@
+<environmentvariabledefinition schemaname="cczd_ZendeskSubdomain">
+  <description default="Your Zendesk subdomain only, for example acme (from acme.zendesk.com). No https:// and no .zendesk.com.">
+    <label description="Your Zendesk subdomain only, for example acme (from acme.zendesk.com). No https:// and no .zendesk.com." languagecode="1033" />
+  </description>
+  <displayname default="Zendesk Subdomain">
+    <label description="Zendesk Subdomain" languagecode="1033" />
+  </displayname>
+  <introducedversion>1.0.0.0</introducedversion>
+  <iscustomizable>1</iscustomizable>
+  <isrequired>0</isrequired>
+  <secretstore>0</secretstore>
+  <type>100000000</type>
+</environmentvariabledefinition>
