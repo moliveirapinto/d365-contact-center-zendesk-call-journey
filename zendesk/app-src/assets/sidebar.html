@@ -49,14 +49,8 @@ function render(note) {
     '<div class="card"><h4><span class="dot"></span>Dynamics 365 call</h4>' +
     (rows || '<div class="muted">Call in progress or summary not added yet. It appears about 2 minutes after the call ends.</div>') +
     (sum && sum !== 'not available yet' ? '<div class="sum">' + esc(sum) + '</div>' : '') +
-    '<div class="btns"><button id="rec">Recording &amp; transcript</button><button id="here" class="alt">View in a pop-up here</button></div></div>';
-  // A normal browser window always works: it does not depend on third-party cookies the way a frame does.
+    '<div class="btns"><button id="rec">Recording &amp; transcript</button></div></div>';
   document.getElementById('rec').onclick = function () {
-    var w = Math.min(1280, screen.availWidth - 80), h = Math.min(860, screen.availHeight - 80);
-    var win = window.open(convUrl(true), 'd365cc_call', 'popup=yes,width=' + w + ',height=' + h + ',left=40,top=40,resizable=yes,scrollbars=yes');
-    if (!win) window.open(convUrl(false), '_blank');
-  };
-  document.getElementById('here').onclick = function () {
     client.invoke('instances.create', {
       location: 'modal', url: 'assets/modal.html#' + encodeURIComponent(convUrl(true)) + '|' + encodeURIComponent(convUrl(false)),
       size: { width: '92vw', height: '88vh' }
