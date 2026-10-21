@@ -11,7 +11,7 @@ This community project connects the two:
 
 ![A call ticket in Zendesk for the inbound call, with the D365 conversation id and the caller's interaction history](docs/images/02-call-ticket-in-zendesk.png)
 
-![A new call ticket that opened automatically for the agent](docs/images/03-ticket-opens-for-the-agent.png)
+![The Recording & transcript pop-up inside Zendesk, with the recording, transcript and the AI quality evaluation side pane](docs/images/03-recording-and-evaluation-in-zendesk.png)
 
 > **Status: version 1.1.0.** It covers the panel, the ticket, the pop-up, and now a **call card on the ticket** (journey summary, AI quality score, **Recording & transcript** button) plus a **call summary note** added when the call ends. The Copilot panel of the new Edge widget is still not possible inside Zendesk. See [Limits](#limits-and-known-gaps).
 
@@ -122,11 +122,11 @@ STEP 0 - QUESTIONS (ask all in one message, then wait)
 
 STEP 1 - PREFLIGHT (read-only)
 1. Sign in to https://<my zendesk>/admin (I complete the sign-in). Open Apps and integrations > Zendesk Support apps. If an app named "Dynamics 365 Contact Center" already exists (Currently Installed or Private Apps), STOP and ask me whether to update it. Never create a second one.
-2. Download the app zip. It must be a valid zip whose root contains manifest.json, assets/widget.html, assets/background.html and translations/en.json. Expected size about 4,500 bytes (the README may name a newer file).
+2. Download the app zip. It must be a valid zip whose root contains manifest.json, assets/widget.html, assets/background.html and translations/en.json. Expected size about 7,700 bytes (the README may name a newer file). It also contains assets/sidebar.html and assets/modal.html.
 
 STEP 2 - UPLOAD AND INSTALL THE APP
 1. Apps and integrations > Zendesk Support apps > Upload private app. App name: Dynamics 365 Contact Center. Choose the zip. Click Upload, read Zendesk's notice and confirm it (it says the app was not reviewed by Zendesk: that is expected for a private app from this repository).
-2. On the install page fill: Title "Dynamics 365 Contact Center"; d365_url = my Dynamics 365 URL; leave call_tag = d365cc and popup_max_age_minutes = 5. Do not tick role or group restrictions unless I ask. Click Install.
+2. On the install page fill: Title "Dynamics 365 Contact Center"; d365_url = my Dynamics 365 URL; leave call_tag = d365cc and popup_max_age_minutes = 5. The optional d365_app_id stays empty. Do not tick role or group restrictions unless I ask. Click Install.
 3. VERIFY: Zendesk Support apps > Currently Installed lists the app as enabled.
 
 STEP 3 - DYNAMICS 365 SIDE (check each item and report)
@@ -184,12 +184,12 @@ PHASE 0 - QUESTIONS (ask all in one message, then wait)
 5. Is the Dynamics 365 Contact Center panel already working inside Zendesk (the connector)? If not, run the section "Need help installing the Zendesk connector?" of the README first.
 
 PHASE 1 - PREFLIGHT (read-only)
-1. Download A and B. A must be a valid zip with manifest.json at the root; B a valid zip with solution.xml, customizations.xml, Workflows/*.json and environmentvariabledefinitions/. Expected sizes: A about 4,500 bytes, B about 6,400 bytes (different only if the README names newer files).
+1. Download A and B. A must be a valid zip with manifest.json at the root; B a valid zip with solution.xml, customizations.xml, Workflows/*.json (two files), WebResources/ and environmentvariabledefinitions/ (four folders). Expected sizes: A about 7,700 bytes, B about 18,000 bytes (different only if the README names newer files). Also download the form script (no unzip needed): https://raw.githubusercontent.com/moliveirapinto/d365-contact-center-zendesk-call-journey/main/dynamics365/Apply-ConversationFormFix.ps1 (file C).
 2. Zendesk: sign in at https://<zendesk>/admin. Check Apps and integrations > Zendesk Support apps for an app named "Dynamics 365 Contact Center" (installed or private). If it exists, tell me its version and ask before updating. Check Apps and integrations > APIs > OAuth clients for a client with identifier d365cc_call_journey; if it exists, STOP and ask me whether to reuse it (you cannot see its secret again; a new secret must be generated on its Edit page).
 3. Dynamics 365: sign in at https://make.powerapps.com, select my environment. It must have the table "Conversation" (logical name msdyn_ocliveworkitem). If not, STOP. Check Solutions for D365ContactCenterZendeskCallJourney; if it exists, tell me its version and ask before importing over it.
 
 PHASE 2 - ZENDESK APP (skip if the connector section already installed it)
-Follow "Step 1" of the README: Zendesk Support apps > Upload private app > file A > Upload (confirm Zendesk's notice) > Install with d365_url = my Dynamics 365 URL, call_tag d365cc, popup_max_age_minutes 5. Verify it shows as enabled.
+Follow "Step 1" of the README: Zendesk Support apps > Upload private app > file A > Upload (confirm Zendesk's notice) > Install with d365_url = my Dynamics 365 URL, call_tag d365cc, popup_max_age_minutes 5, d365_app_id EMPTY. Verify it shows as enabled. If the app already exists, use its menu > Update (never a second copy); the settings are kept. The app has three parts: the top-bar panel, a background part that opens call tickets, and a "Dynamics 365 call" card in the ticket Apps sidebar.
 
 PHASE 3 - ZENDESK OAUTH CLIENT
 1. Admin Center > Apps and integrations > APIs > OAuth clients > Add OAuth client. If Zendesk shows the Developer Terms page first, tell me and let ME accept them.
@@ -200,10 +200,17 @@ PHASE 3 - ZENDESK OAUTH CLIENT
 PHASE 4 - DYNAMICS 365 SOLUTION
 1. https://make.powerapps.com > my environment > Solutions > Import solution > Browse > file B > Next.
 2. Connections: create or select a Microsoft Dataverse connection for "D365 Contact Center - Dataverse (Zendesk)" (I sign in if asked).
-3. Environment variables: "Zendesk Subdomain" = the subdomain only (for example acme from acme.zendesk.com; no https:// and no .zendesk.com); "Zendesk OAuth Client ID" = d365cc_call_journey; "Zendesk OAuth Client Secret" = paste the secret now, then clear the clipboard.
-4. Import and wait for the success message.
+3. Environment variables (four): "Zendesk Subdomain" = the subdomain only (for example acme from acme.zendesk.com; no https:// and no .zendesk.com); "Zendesk OAuth Client ID" = d365cc_call_journey; "Zendesk OAuth Client Secret" = paste the secret now, then clear the clipboard; "D365 Environment URL" = my Dynamics 365 URL (https://<org>.crm.dynamics.com, no trailing slash, no path).
+4. Import and wait for the success message. The solution contains two flows, the web resource new_d365cc_evaluationpanefix.js and the read-only app "Contact Center Call Review" (unique name new_ContactCenterCallReview). If the import says the app or web resource already exists, that is fine (it is shared with the Salesforce and ServiceNow versions of this project).
 5. Open the solution "D365 Contact Center - Zendesk Call Journey". Check the connection reference is connected. Ask me for a "yes", then turn ON the flow "D365 Contact Center - Create Zendesk ticket when an agent accepts a call". Reload and confirm it shows On.
-6. Confirm the four environment variables have a current value, including D365 Environment URL = my Dynamics 365 URL (for the secret only that it is not empty; never display it). Then turn on BOTH flows: "Create Zendesk ticket when an agent accepts a call" and "Add call summary to Zendesk ticket when a call ends".
+6. Confirm the four environment variables have a current value, including D365 Environment URL = my Dynamics 365 URL (for the secret only that it is not empty; never display it). Then turn on BOTH flows: "Create Zendesk ticket when an agent accepts a call" and "Add call summary to Zendesk ticket when a call ends". If turning the second flow on says an environment variable has no value, the D365 Environment URL is empty: set it and retry.
+7. Make sure the app "Contact Center Call Review" is published and visible: Power Apps > Apps lists it (a Dataverse query for appmodules with uniquename new_ContactCenterCallReview must return one row). If it is missing right after the import, wait a few minutes and try Publish all customizations once (it can take several minutes; another import or publish running at the same time makes publishing fail with "another operation is running": just wait and retry).
+
+PHASE 4B - QUALITY EVALUATION PANE IN THE RECORDING POP-UP
+Goal: the "Recording & transcript" pop-up in the Zendesk ticket card shows the recording, the transcript and the AI quality evaluation side pane, exactly like the Salesforce and ServiceNow versions. It must NEVER open the Customer Service workspace app (that app registers the agent and would ring the next call); the pop-up uses the read-only app "Contact Center Call Review" by name, so no app id is needed.
+1. Form script. Run once, with me signed in via "az login" as a System Administrator or System Customizer of the environment: pwsh -File Apply-ConversationFormFix.ps1 -OrgUrl https://<org>.crm.dynamics.com (file C; run it with -WhatIf first and show me the result). It adds the library new_d365cc_evaluationpanefix.js and its On load handler (function D365CC.EvaluationPaneFix.onLoad, "Pass execution context" ON) to the "Conversation Form" (Main) of table Conversation (msdyn_ocliveworkitem), and publishes that table. It is safe to run twice. If you cannot run PowerShell, do it by hand: make.powerapps.com > Tables > Conversation > Forms > Conversation Form > Form libraries > Add library > new_d365cc_evaluationpanefix.js, then select the form > Events > On load > add the handler above, Enabled, pass execution context ON > Save and Publish. It also reports whether the content security policy is enforced; if it is, the frame-ancestors list must include https://*.zdusercontent.com and https://*.zendesk.com.
+2. Share the app. Apps > Contact Center Call Review > Share > add the agents' security roles (Customer Service Representative, Omnichannel agent; never "everyone"). Publish the app.
+3. Verify read-only: the form XML of the Conversation Form contains new_d365cc_evaluationpanefix; the app is shared with the roles.
 
 PHASE 5 - VERIFY THE ZENDESK CONNECTION (no tickets created)
 Without printing secrets, check that the client works: in a shell or the browser console, request a token with POST https://<zendesk>/oauth/tokens, JSON body {"grant_type":"client_credentials","client_id":"d365cc_call_journey","client_secret":"<secret>","scope":"read write"}. Expect HTTP 200 with an access_token. HTTP 401 means the secret or client id is wrong. If you cannot do this without exposing the secret, skip it and rely on Phase 6.
@@ -212,10 +219,13 @@ PHASE 6 - END-TO-END TEST
 1. Ask the Zendesk agent to sign in to https://<zendesk>/agent, keep the tab open and open the Dynamics 365 panel (phone icon) so they are signed in and Available.
 2. Ask me to call my Dynamics 365 voice number and let the agent accept the call.
 3. Within about a minute a ticket "Inbound call <name>: Voice" must appear with tags d365cc and voice and a PRIVATE note (queue, agent, conversation ID), and it must open by itself in the agent's workspace.
-4. If not: check the flow's run history in Power Automate (Failed run: read the error. 401 from Zendesk = wrong OAuth client id or secret, 404 = wrong subdomain), that the Zendesk tab was open, the tag matches, and the call was accepted by an agent within the last 30 minutes. Tell me what you found.
+4. Open the ticket's Apps sidebar (grid icon on the right of the ticket): the "Dynamics 365 call" card must show with the button "Recording & transcript". Click it: a pop-up opens inside Zendesk with the call (player, transcript, call metrics). If it is blank, third-party cookies are blocked for [*.]dynamics.com / [*.]microsoftonline.com, or I am not signed in to Dynamics 365 in this browser; "Open in a new tab" at the top of the pop-up always works.
+5. About 2 minutes after the call ends, a second PRIVATE note "Call ended (Dynamics 365 Contact Center)" must appear on the ticket with talk, wait and handle time, sentiment, AI quality score and summary and a link to the conversation. The card then shows the same numbers.
+6. The quality evaluation pane (Realtime Conversation Plan, score, AI summary, quality indicators) and the Quality Score trendline appear in the pop-up ONLY if Dynamics 365 evaluated the call. Evaluations run in real time while the call is on, so a very short call (about 30 seconds or less) is usually not evaluated, and the evaluation plan must cover the call's workstream and queue (Copilot Service admin center > Quality evaluation). To prove the pane works, open the card of any ticket whose conversation already has an evaluation (Dataverse table msdyn_evaluationhistory has a row for it). If there is none, tell me; this is a Dynamics 365 configuration matter, not an installation fault.
+7. If a step above fails: check the flow's run history in Power Automate (Failed run: read the error. 401 from Zendesk = wrong OAuth client id or secret, 404 = wrong subdomain), that the Zendesk tab was open, the tag matches, and the call was accepted by an agent within the last 30 minutes. Tell me what you found.
 
 PHASE 7 - FINAL REPORT
-A table: item / status / what you saw. List exactly what you changed, where the secret lives (the Dynamics 365 environment variable only) and how to undo it (turn the flow off and delete the solution; uninstall the app; delete the OAuth client in Zendesk). Mention the known gaps from the README.
+A table: item / status / what you saw. List exactly what you changed, where the secret lives (the Dynamics 365 environment variable only) and how to undo it (turn the flow off and delete the solution; uninstall the app; delete the OAuth client in Zendesk). Mention the known gaps from the README: no Copilot panel inside Zendesk (the Edge widget cannot be framed by a Zendesk app), the transcript is shown by Dynamics 365 and is not copied into Zendesk, short calls get no quality evaluation.
 
 START with PHASE 0.
 ````
@@ -236,6 +246,7 @@ START with PHASE 0.
    | `d365_url` | Your Dynamics 365 URL, for example `https://contoso.crm.dynamics.com` (no path, no trailing slash) |
    | `call_tag` | `d365cc` (leave as is) |
    | `popup_max_age_minutes` | `5` (leave as is) |
+   | `d365_app_id` | leave empty (the pop-up uses the read-only Call Review app by name) |
 
 5. Open `https://<your zendesk>/agent`, press **Ctrl+Shift+R**, and click the new **phone icon** in the top bar. A Microsoft sign-in pop-up opens; sign in with your Dynamics 365 agent account.
 
@@ -281,6 +292,9 @@ The flow needs a way to create tickets. Zendesk is retiring API tokens (April 30
 1. Sign in to Zendesk as an agent and keep the tab open. Open the phone icon panel and make sure the agent is **Available**.
 2. Call your Dynamics 365 voice number and let the agent accept.
 3. Within about a minute a ticket **Inbound call … : Voice** appears and opens by itself. It has the tags `d365cc` and `voice` and a private note with the conversation ID.
+4. Open the ticket's **Apps** sidebar (grid icon on the right). The **Dynamics 365 call** card has a **Recording & transcript** button that opens the call inside Zendesk.
+5. About 2 minutes after the call ends, a second private note **Call ended (Dynamics 365 Contact Center)** appears with the call times, sentiment, AI quality score and summary, and the card shows the same numbers.
+6. The **AI quality evaluation** side pane and the quality trendline show in the pop-up when Dynamics 365 evaluated the call. Evaluations run while the call is on, so a call of about 30 seconds or less is usually not evaluated, and the evaluation plan must cover the call's workstream and queue.
 
 ## Troubleshooting
 
@@ -292,6 +306,10 @@ The flow needs a way to create tickets. Zendesk is retiring API tokens (April 30
 | *"HTTP 400 – Request Too Long"* | Clear cookies for `dynamics.com` and `microsoftonline.com`. |
 | No ticket after a call | Flow on? Open it in Power Automate and read the latest run. **401** = wrong OAuth client id or secret. **404** = wrong subdomain. Was the call accepted by an agent in the last 30 minutes? |
 | Ticket created but did not open | The Zendesk tab must be open. The tag (`call_tag`) must match. The ticket must be newer than `popup_max_age_minutes`. If it is assigned to another agent, only that agent sees it. |
+| Pop-up blank or shows a blocked icon | Allow third-party cookies for `[*.]dynamics.com` and `[*.]microsoftonline.com` and sign in to Dynamics 365 in the same browser. **Open in a new tab** at the top of the pop-up always works. |
+| Pop-up has no quality evaluation pane | The call was not evaluated (too short, or the plan does not cover its workstream or queue), or the form script was not applied: run `dynamics365/Apply-ConversationFormFix.ps1` ([Step 3](#step-3--dynamics-365-import-the-solution)). |
+| No *Dynamics 365 call* card | The app was installed before 1.1.0: use **Update** on the app and upload the 1.1.0 zip. The ticket needs the tag `d365cc` and the Dynamics 365 conversation as its external id. |
+| No summary note after the call | Is the flow **Add call summary to Zendesk ticket when a call ends** on, and the variable *D365 Environment URL* filled? Read its latest run. The note is added about 2 minutes after the call ends. |
 | Two tickets for one call | Two copies of the flow are on. Turn one off. |
 | Ticket shows *"Recipient server rejected email"* | You are running an early build that wrote a public comment. Use this release: the call note is private. |
 
