@@ -25,7 +25,8 @@ client.invoke('resize', { width: '100%', height: '300px' });
 function orgUrl() { return String(settings.d365_url || '').trim().replace(/\/+$/, ''); }
 function convUrl(embedded) {
   var app = String(settings.d365_app_id || '').trim();
-  return orgUrl() + '/main.aspx?' + (app ? 'appid=' + encodeURIComponent(app) + '&' : '') + (embedded ? 'navbar=off&' : '') +
+  // The Customer Service workspace app shows the conversation form with the AI quality evaluation side pane.
+  return orgUrl() + '/main.aspx?' + (app ? 'appid=' + encodeURIComponent(app) : 'appname=msdyn_CustomerServiceWorkspace') + '&' + (embedded ? 'navbar=off&' : '') +
     'pagetype=entityrecord&etn=msdyn_ocliveworkitem&id=' + encodeURIComponent(convId);
 }
 function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }

@@ -43,7 +43,7 @@ function Hst($op){ $h=[ordered]@{}; foreach($k in $CDS.Keys){$h[$k]=$CDS[$k]}; $
 $ev = "coalesce(first(coalesce(outputs('Get_quality_evaluation')?['body/value'], json('[]'))), json('{}'))"
 $ej = "json(coalesce(${ev}?['msdyn_responsejson'], '{}'))"
 function Dur($f){ "if(empty(body('Get_conversation')?['$f']), 'n/a', concat(string(div(int(body('Get_conversation')?['$f']), 60)), 'm ', string(mod(int(body('Get_conversation')?['$f']), 60)), 's'))" }
-$link = "@{parameters('$pOrg')}/main.aspx?pagetype=entityrecord&etn=msdyn_ocliveworkitem&id=@{triggerOutputs()?['body/activityid']}"
+$link = "@{parameters('$pOrg')}/main.aspx?appname=msdyn_CustomerServiceWorkspace&pagetype=entityrecord&etn=msdyn_ocliveworkitem&id=@{triggerOutputs()?['body/activityid']}"
 $note = "Call ended (Dynamics 365 Contact Center)`nTalk time: @{$(Dur 'msdyn_conversationtalktimeinseconds')} | Wait: @{$(Dur 'msdyn_conversationfirstwaittimeinseconds')} | Handle: @{$(Dur 'msdyn_conversationhandletimeinseconds')}`nCustomer sentiment: @{coalesce(body('Get_conversation')?['msdyn_customersentimentlabel@OData.Community.Display.V1.FormattedValue'], 'n/a')}`nHandled by virtual agent: @{if(equals(body('Get_conversation')?['msdyn_copilotengaged'], true), 'yes', 'no')}`nAI quality score: @{coalesce(${ev}?['msdyn_evaluationscore'], 'not available yet')}@{if(empty(${ej}?['action_name']), '', concat(' (', ${ej}?['action_name'], ')'))}`nAI summary: @{coalesce(${ej}?['overall_summary'], 'not available yet')}`nRecording and transcript: $link"
 $inner = [ordered]@{}
 $inner.Wait_for_AI_evaluation = [ordered]@{runAfter=@{};type='Wait';inputs=[ordered]@{interval=[ordered]@{count=2;unit='Minute'}}}
