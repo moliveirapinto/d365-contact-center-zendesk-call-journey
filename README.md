@@ -13,7 +13,7 @@ This community project connects the two:
 
 ![A new call ticket that opened automatically for the agent](docs/images/03-ticket-opens-for-the-agent.png)
 
-> **Status: first version (1.0.0).** It covers the panel, the ticket and the pop-up. It does **not** yet have the call-journey card, the recording and transcript button, or the quality score that the [ServiceNow](https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey) and [Salesforce](https://github.com/moliveirapinto/d365-contact-center-salesforce-call-journey) versions have. See [Limits](#limits-and-known-gaps).
+> **Status: version 1.1.0.** It covers the panel, the ticket, the pop-up, and now a **call card on the ticket** (journey summary, AI quality score, **Recording & transcript** button) plus a **call summary note** added when the call ends. The Copilot panel of the new Edge widget is still not possible inside Zendesk. See [Limits](#limits-and-known-gaps).
 
 > 🧩 Everything is **ready to install**: one `.zip` for Zendesk, one `.zip` for Dynamics 365. No coding. Prefer to hand it over? [Let an AI assistant install it for you](#let-an-ai-assistant-install-the-call-journey).
 
@@ -43,7 +43,11 @@ This community project connects the two:
 | **Zendesk top bar** | A phone icon that opens the Dynamics 365 Contact Center conversation widget (up to 1200 × 720). The agent signs in once with their Microsoft account. |
 | **Zendesk tickets** | One ticket per accepted voice call, tagged `d365cc` and `voice`, with a **private** note (queue, agent, time, Dynamics 365 conversation ID). The caller is matched to a Zendesk user by the Dynamics 365 contact's name, email and phone. |
 | **Zendesk screen pop** | The ticket opens in the agent's workspace within a few seconds of being created, and is assigned to that agent if nobody owns it. |
-| **Dynamics 365** | A solution with one Power Automate flow, three environment variables and one connection reference. |
+| **Call card on the ticket** | A **Dynamics 365 call** card in the ticket's Apps sidebar: talk, wait and handle time, customer sentiment, AI quality score and summary, and two buttons: **Recording & transcript** (pop-up) and **Open in a new tab**. |
+| **Call summary note** | About 2 minutes after the call ends, a second private note is added to the ticket with the call metrics, the AI quality evaluation and a link to the Dynamics 365 conversation (recording and transcript). |
+| **Dynamics 365** | A solution with two Power Automate flows, four environment variables and one connection reference. |
+
+![The call summary note and the Dynamics 365 call card on the ticket](docs/images/05-call-summary-and-card.png)
 
 ![Install settings of the Zendesk app](docs/images/04-app-settings.png)
 
@@ -100,7 +104,7 @@ You are a Zendesk and Dynamics 365 installation engineer. Install the "Dynamics 
 SOURCE
 Repository: https://github.com/moliveirapinto/d365-contact-center-zendesk-call-journey
 README (context): https://raw.githubusercontent.com/moliveirapinto/d365-contact-center-zendesk-call-journey/main/README.md
-Zendesk app file (do NOT unzip): https://github.com/moliveirapinto/d365-contact-center-zendesk-call-journey/releases/download/v1.0.0/D365ContactCenter_Zendesk_App_1.0.0.zip
+Zendesk app file (do NOT unzip): https://github.com/moliveirapinto/d365-contact-center-zendesk-call-journey/releases/download/v1.1.0/D365ContactCenter_Zendesk_App_1.1.0.zip
 Microsoft documentation is the source of truth for the Dynamics 365 side. If this prompt disagrees with it, follow Microsoft, tell me, and continue.
 
 HOW TO WORK
@@ -157,9 +161,9 @@ You are an installation engineer. Install the community package "Dynamics 365 Co
 SOURCE
 Repository: https://github.com/moliveirapinto/d365-contact-center-zendesk-call-journey
 README (source of truth): https://raw.githubusercontent.com/moliveirapinto/d365-contact-center-zendesk-call-journey/main/README.md
-Release v1.0.0 files (do NOT unzip them):
-  A) Zendesk app: https://github.com/moliveirapinto/d365-contact-center-zendesk-call-journey/releases/download/v1.0.0/D365ContactCenter_Zendesk_App_1.0.0.zip
-  B) Dynamics 365 solution: https://github.com/moliveirapinto/d365-contact-center-zendesk-call-journey/releases/download/v1.0.0/D365ContactCenterZendeskCallJourney_1_0_0_0.zip
+Release v1.1.0 files (do NOT unzip them):
+  A) Zendesk app: https://github.com/moliveirapinto/d365-contact-center-zendesk-call-journey/releases/download/v1.1.0/D365ContactCenter_Zendesk_App_1.1.0.zip
+  B) Dynamics 365 solution: https://github.com/moliveirapinto/d365-contact-center-zendesk-call-journey/releases/download/v1.1.0/D365ContactCenterZendeskCallJourney_1_1_0_0.zip
 Read the README first. If the README and this prompt disagree, follow the README and tell me. If a newer release exists, use the files the README names and tell me.
 
 HOW TO WORK
@@ -199,7 +203,7 @@ PHASE 4 - DYNAMICS 365 SOLUTION
 3. Environment variables: "Zendesk Subdomain" = the subdomain only (for example acme from acme.zendesk.com; no https:// and no .zendesk.com); "Zendesk OAuth Client ID" = d365cc_call_journey; "Zendesk OAuth Client Secret" = paste the secret now, then clear the clipboard.
 4. Import and wait for the success message.
 5. Open the solution "D365 Contact Center - Zendesk Call Journey". Check the connection reference is connected. Ask me for a "yes", then turn ON the flow "D365 Contact Center - Create Zendesk ticket when an agent accepts a call". Reload and confirm it shows On.
-6. Confirm the three environment variables have a current value (for the secret only that it is not empty; never display it).
+6. Confirm the four environment variables have a current value, including D365 Environment URL = my Dynamics 365 URL (for the secret only that it is not empty; never display it). Then turn on BOTH flows: "Create Zendesk ticket when an agent accepts a call" and "Add call summary to Zendesk ticket when a call ends".
 
 PHASE 5 - VERIFY THE ZENDESK CONNECTION (no tickets created)
 Without printing secrets, check that the client works: in a shell or the browser console, request a token with POST https://<zendesk>/oauth/tokens, JSON body {"grant_type":"client_credentials","client_id":"d365cc_call_journey","client_secret":"<secret>","scope":"read write"}. Expect HTTP 200 with an access_token. HTTP 401 means the secret or client id is wrong. If you cannot do this without exposing the secret, skip it and rely on Phase 6.
@@ -222,7 +226,7 @@ START with PHASE 0.
 
 ### Step 1 – Zendesk: install the app
 
-1. Download [`D365ContactCenter_Zendesk_App_1.0.0.zip`](zendesk/D365ContactCenter_Zendesk_App_1.0.0.zip) from the [latest release](../../releases/latest) (do not unzip it).
+1. Download [`D365ContactCenter_Zendesk_App_1.1.0.zip`](zendesk/D365ContactCenter_Zendesk_App_1.1.0.zip) from the [latest release](../../releases/latest) (do not unzip it).
 2. In Zendesk, open **Admin Center → Apps and integrations → Zendesk Support apps → Upload private app**.
 3. Name it **Dynamics 365 Contact Center**, choose the zip, click **Upload**, and confirm Zendesk's notice (it appears because the app was not reviewed by Zendesk).
 4. On the install page, fill the settings and click **Install**:
@@ -245,18 +249,19 @@ The flow needs a way to create tickets. Zendesk is retiring API tokens (April 30
 
 ### Step 3 – Dynamics 365: import the solution
 
-1. Download [`D365ContactCenterZendeskCallJourney_1_0_0_0.zip`](dynamics365/D365ContactCenterZendeskCallJourney_1_0_0_0.zip) from the release.
+1. Download [`D365ContactCenterZendeskCallJourney_1_1_0_0.zip`](dynamics365/D365ContactCenterZendeskCallJourney_1_1_0_0.zip) from the release.
 2. Open [make.powerapps.com](https://make.powerapps.com), select your Contact Center environment, then **Solutions → Import solution**, choose the zip, **Next**.
 3. Create or choose the **Microsoft Dataverse** connection when asked.
-4. Fill the three environment variables:
+4. Fill the four environment variables:
 
    | Variable | Value |
    |---|---|
    | Zendesk Subdomain | `acme` (from `acme.zendesk.com`, nothing else) |
    | Zendesk OAuth Client ID | `d365cc_call_journey` |
    | Zendesk OAuth Client Secret | the secret you copied in Step 2 |
+   | D365 Environment URL | `https://contoso.crm.dynamics.com` (used for the recording and transcript link) |
 
-5. **Import**. Open the solution, check the connection reference is connected, and turn **on** the flow **D365 Contact Center – Create Zendesk ticket when an agent accepts a call**.
+5. **Import**. Open the solution, check the connection reference is connected, and turn **on** both flows: **D365 Contact Center – Create Zendesk ticket when an agent accepts a call** and **D365 Contact Center – Add call summary to Zendesk ticket when a call ends**.
 
 ### Step 4 – Dynamics 365 checks (only if something does not work)
 
@@ -285,9 +290,10 @@ The flow needs a way to create tickets. Zendesk is retiring API tokens (April 30
 
 ## Limits and known gaps
 
-- **No journey card, recording or transcript button, or quality score yet.** The ServiceNow and Salesforce versions have them; porting them to Zendesk (ticket sidebar app) is the next step.
+- **Recording and transcript open Dynamics 365, they are not copied into Zendesk.** The ticket card and note link to the Dynamics 365 conversation. The **Recording & transcript** pop-up frames that page, which needs the agent to be signed in to Dynamics 365 in the same browser, third-party cookies allowed, and, if your environment enforces a content security policy, `https://*.zdusercontent.com` in its `frame-ancestors` list. If the pop-up stays blank, use **Open in a new tab**, which always works. The transcript text and the call timeline (received, connected, ended) are not on the card yet.
+- **The summary note arrives about 2 minutes after the call ends**, to give the AI quality evaluation time to finish. If the evaluation is not ready by then, the note says so.
 - **Not supported by Microsoft or Zendesk.** Microsoft documents the embeddable widget for Salesforce only. It works in a Zendesk app iframe, but Microsoft does not test it there.
-- **Widget version: this package uses the classic embeddable widget, not the new "Contact Center Edge" widget.** The Salesforce version of this project can also use the new Edge widget (Pulse portal, with a Copilot panel). We tested that in a Zendesk app on 2026-10-08 and it **does not load**: the Edge portal only allows itself to be framed by an approved list of sites, and a Zendesk app runs on `*.apps.zdusercontent.com`, which is not on the list, so the browser blocks it (console: *"Framing 'https://portal.us.contactcenterai.powerplatform.com/' violates the following Content Security Policy directive: frame-ancestors …"*). The same test with the classic widget loads fine. Nothing in this package needs changing; keep using the classic widget here. If Microsoft adds Zendesk app origins to the Edge portal's allowed list, the only change is the iframe address in `zendesk/app-src/assets/widget.html`.
+- **Widget version: this package uses the classic embeddable widget, not the new "Contact Center Edge" widget.** The Salesforce version of this project can also use the new Edge widget (Pulse portal, with a Copilot panel). We tested that in a Zendesk app on 2026-10-08 and it **does not load**: the Edge portal only allows itself to be framed by an approved list of sites, and a Zendesk app runs on `*.apps.zdusercontent.com`, which is not on the list, so the browser blocks it (console: *"Framing 'https://portal.us.contactcenterai.powerplatform.com/' violates the following Content Security Policy directive: frame-ancestors …"*). The same test with the classic widget loads fine. Nothing in this package needs changing; keep using the classic widget here. Because of this, the **Copilot panel of the Edge widget is not available inside Zendesk** today. If Microsoft adds Zendesk app origins to the Edge portal's allowed list, the only change is the iframe address in `zendesk/app-src/assets/widget.html`.
 - **Polling, not events.** The flow runs once a minute, so the ticket appears up to about a minute after the agent accepts. The Zendesk app checks every 5 seconds.
 - **Agent matching.** A new ticket opens for whichever agent has Zendesk open; Dynamics 365 agents are not mapped to Zendesk agents yet. Fine for one agent or a small team.
 - **Callers.** The caller is matched through the Dynamics 365 contact's Mobile or Business phone. Unknown callers are attached to one shared user, "Unknown caller".
@@ -298,9 +304,9 @@ The flow needs a way to create tickets. Zendesk is retiring API tokens (April 30
 
 | Path | What |
 |---|---|
-| [`zendesk/D365ContactCenter_Zendesk_App_1.0.0.zip`](zendesk/D365ContactCenter_Zendesk_App_1.0.0.zip) | The Zendesk private app (install it as is) |
-| [`zendesk/app-src/`](zendesk/app-src) | Source of the app: `manifest.json`, `assets/widget.html` (top-bar panel), `assets/background.html` (ticket pop-up) |
-| [`dynamics365/D365ContactCenterZendeskCallJourney_1_0_0_0.zip`](dynamics365/D365ContactCenterZendeskCallJourney_1_0_0_0.zip) | The Dynamics 365 solution (unmanaged): flow, 3 environment variables, 1 connection reference |
+| [`zendesk/D365ContactCenter_Zendesk_App_1.1.0.zip`](zendesk/D365ContactCenter_Zendesk_App_1.1.0.zip) | The Zendesk private app (install it as is) |
+| [`zendesk/app-src/`](zendesk/app-src) | Source of the app: `manifest.json`, `assets/widget.html` (top-bar panel), `assets/background.html` (ticket pop-up), `assets/sidebar.html` (call card) and `assets/modal.html` (recording pop-up) |
+| [`dynamics365/D365ContactCenterZendeskCallJourney_1_1_0_0.zip`](dynamics365/D365ContactCenterZendeskCallJourney_1_1_0_0.zip) | The Dynamics 365 solution (unmanaged): two flows, 4 environment variables, 1 connection reference |
 | [`dynamics365/solution-src/`](dynamics365/solution-src) | Unpacked source of the solution |
 | [`dynamics365/build-solution.ps1`](dynamics365/build-solution.ps1) | Rebuilds the flow definition and the solution zip |
 | [`docs/images/`](docs/images) | Screenshots used in this README |

@@ -1,0 +1,79 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
+<style>
+body{margin:0;padding:8px;font:13px/1.4 "Segoe UI",Arial,sans-serif;color:#2f3941}
+.card{border:1px solid #d8dcde;border-radius:6px;padding:10px}
+h4{margin:0 0 6px;font-size:14px;display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:#0078d4;display:inline-block}
+.row{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px solid #f0f0f0}
+.row span:first-child{color:#68737d;white-space:nowrap}
+.row span:last-child{text-align:right}
+.sum{margin:6px 0;padding:6px;background:#f8f9f9;border-radius:4px;font-size:12px}
+.btns{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+button{font:inherit;padding:6px 10px;border-radius:4px;border:1px solid #0078d4;background:#0078d4;color:#fff;cursor:pointer}
+button.alt{background:#fff;color:#0078d4}
+.muted{color:#68737d;font-size:12px}
+</style></head><body>
+<div id="root" class="muted">Loading...</div>
+<script>
+// Shows the Dynamics 365 Contact Center call behind a call ticket (tag d365cc): journey, AI quality score, recording and transcript.
+var client = ZAFClient.init();
+var settings = {}, convId = '', recUrl = '';
+client.invoke('resize', { width: '100%', height: '300px' });
+
+function orgUrl() { return String(settings.d365_url || '').trim().replace(/\/+$/, ''); }
+function convUrl(embedded) {
+  var app = String(settings.d365_app_id || '').trim();
+  return orgUrl() + '/main.aspx?' + (app ? 'appid=' + encodeURIComponent(app) + '&' : '') + (embedded ? 'navbar=off&' : '') +
+    'pagetype=entityrecord&etn=msdyn_ocliveworkitem&id=' + encodeURIComponent(convId);
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function field(note, label) {
+  var m = new RegExp('^' + label + ':\\s*(.*)$', 'mi').exec(note);
+  return m ? m[1].trim() : '';
+}
+
+function render(note) {
+  var rows = '';
+  if (note) {
+    var t = field(note, 'Talk time');
+    if (t) rows += '<div class="row"><span>Talk / wait / handle</span><span>' + esc(t.replace(/Talk time:|Wait:|Handle:/g, '')) + '</span></div>';
+    [['Customer sentiment', 'Sentiment'], ['Handled by virtual agent', 'Virtual agent'], ['AI quality score', 'AI quality score']].forEach(function (p) {
+      var v = field(note, p[0]); if (v) rows += '<div class="row"><span>' + p[1] + '</span><span>' + esc(v) + '</span></div>';
+    });
+  }
+  var sum = note ? field(note, 'AI summary') : '';
+  document.getElementById('root').className = '';
+  document.getElementById('root').innerHTML =
+    '<div class="card"><h4><span class="dot"></span>Dynamics 365 call</h4>' +
+    (rows || '<div class="muted">Call in progress or summary not added yet. It appears about 2 minutes after the call ends.</div>') +
+    (sum && sum !== 'not available yet' ? '<div class="sum">' + esc(sum) + '</div>' : '') +
+    '<div class="btns"><button id="rec">Recording &amp; transcript</button><button id="tab" class="alt">Open in a new tab</button></div></div>';
+  document.getElementById('rec').onclick = function () {
+    client.invoke('instances.create', {
+      location: 'modal', url: 'assets/modal.html#' + encodeURIComponent(convUrl(true)) + '|' + encodeURIComponent(convUrl(false)),
+      size: { width: '92vw', height: '88vh' }
+    });
+  };
+  document.getElementById('tab').onclick = function () { window.open(convUrl(false), '_blank', 'noopener'); };
+}
+
+Promise.all([client.metadata(), client.get(['ticket.id', 'ticket.externalId', 'ticket.tags'])]).then(function (r) {
+  settings = r[0].settings || {};
+  var t = r[1];
+  convId = t['ticket.externalId'] || '';
+  var tags = t['ticket.tags'] || [];
+  var tag = String(settings.call_tag || 'd365cc').trim();
+  if (!convId || tags.indexOf(tag) < 0 || !/^https:\/\/[^\/]+\.dynamics\.com$/i.test(orgUrl())) {
+    document.getElementById('root').textContent = 'This ticket is not a Dynamics 365 call, or the Dynamics 365 URL is not set in the app settings.';
+    return;
+  }
+  render('');
+  client.request({ url: '/api/v2/tickets/' + t['ticket.id'] + '/comments.json?sort_order=desc&include_inline_images=false' }).then(function (res) {
+    var c = (res.comments || []).filter(function (x) { return /^Call ended \(Dynamics 365 Contact Center\)/.test(x.plain_body || x.body || ''); })[0];
+    if (c) render(c.plain_body || c.body);
+  }, function () {});
+});
+</script>
+</body></html>

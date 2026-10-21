@@ -1,0 +1,13 @@
+<environmentvariabledefinition schemaname="cczd_D365OrgUrl">
+  <description default="Your Dynamics 365 environment URL, for example https://contoso.crm.dynamics.com (no path, no trailing slash). Used for the recording and transcript link in the ticket note.">
+    <label description="Your Dynamics 365 environment URL, for example https://contoso.crm.dynamics.com (no path, no trailing slash). Used for the recording and transcript link in the ticket note." languagecode="1033" />
+  </description>
+  <displayname default="D365 Environment URL">
+    <label description="D365 Environment URL" languagecode="1033" />
+  </displayname>
+  <introducedversion>1.1.0.0</introducedversion>
+  <iscustomizable>1</iscustomizable>
+  <isrequired>0</isrequired>
+  <secretstore>0</secretstore>
+  <type>100000000</type>
+</environmentvariabledefinition>

@@ -1,0 +1,240 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "cczd_dataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Zendesk Subdomain (cczd_ZendeskSubdomain)": {
+          "defaultValue": "",
+          "type": "String",
+          "metadata": {
+            "schemaName": "cczd_ZendeskSubdomain"
+          }
+        },
+        "Zendesk OAuth Client ID (cczd_ZendeskClientId)": {
+          "defaultValue": "",
+          "type": "String",
+          "metadata": {
+            "schemaName": "cczd_ZendeskClientId"
+          }
+        },
+        "Zendesk OAuth Client Secret (cczd_ZendeskClientSecret)": {
+          "defaultValue": "",
+          "type": "String",
+          "metadata": {
+            "schemaName": "cczd_ZendeskClientSecret"
+          }
+        },
+        "D365 Environment URL (cczd_D365OrgUrl)": {
+          "defaultValue": "",
+          "type": "String",
+          "metadata": {
+            "schemaName": "cczd_D365OrgUrl"
+          }
+        }
+      },
+      "triggers": {
+        "When_a_voice_conversation_ends": {
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 3,
+              "subscriptionRequest/entityname": "msdyn_ocliveworkitem",
+              "subscriptionRequest/scope": 4,
+              "subscriptionRequest/filteringattributes": "statuscode",
+              "subscriptionRequest/filterexpression": "(statuscode eq 4 or statuscode eq 5)"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Get_conversation": {
+          "runAfter": {},
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "operationId": "GetItem"
+            },
+            "parameters": {
+              "entityName": "msdyn_ocliveworkitems",
+              "recordId": "@triggerOutputs()?['body/activityid']",
+              "$select": "msdyn_channel,msdyn_conversationtalktimeinseconds,msdyn_conversationfirstwaittimeinseconds,msdyn_conversationhandletimeinseconds,msdyn_customersentimentlabel,msdyn_copilotengaged"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "If_voice_call": {
+          "runAfter": {
+            "Get_conversation": [
+              "Succeeded"
+            ]
+          },
+          "type": "If",
+          "expression": {
+            "and": [
+              {
+                "equals": [
+                  "@string(body('Get_conversation')?['msdyn_channel'])",
+                  "192440000"
+                ]
+              }
+            ]
+          },
+          "actions": {
+            "Wait_for_AI_evaluation": {
+              "runAfter": {},
+              "type": "Wait",
+              "inputs": {
+                "interval": {
+                  "count": 2,
+                  "unit": "Minute"
+                }
+              }
+            },
+            "Get_quality_evaluation": {
+              "runAfter": {
+                "Wait_for_AI_evaluation": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "entityName": "msdyn_evaluationhistories",
+                  "$select": "msdyn_evaluationscore,msdyn_responsejson,createdon",
+                  "$filter": "msdyn_ocliveworkitemid eq '@{triggerOutputs()?['body/activityid']}'",
+                  "$orderby": "createdon desc",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Get_Zendesk_token": {
+              "runAfter": {
+                "Get_quality_evaluation": [
+                  "Succeeded",
+                  "Failed"
+                ]
+              },
+              "type": "Http",
+              "inputs": {
+                "method": "POST",
+                "uri": "https://@{parameters('Zendesk Subdomain (cczd_ZendeskSubdomain)')}.zendesk.com/oauth/tokens",
+                "headers": {
+                  "Content-Type": "application/json",
+                  "Accept": "application/json"
+                },
+                "body": {
+                  "grant_type": "client_credentials",
+                  "client_id": "@parameters('Zendesk OAuth Client ID (cczd_ZendeskClientId)')",
+                  "client_secret": "@parameters('Zendesk OAuth Client Secret (cczd_ZendeskClientSecret)')",
+                  "scope": "read write"
+                }
+              }
+            },
+            "Find_ticket": {
+              "runAfter": {
+                "Get_Zendesk_token": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Http",
+              "inputs": {
+                "method": "GET",
+                "uri": "https://@{parameters('Zendesk Subdomain (cczd_ZendeskSubdomain)')}.zendesk.com/api/v2/tickets.json?external_id=@{triggerOutputs()?['body/activityid']}",
+                "headers": {
+                  "Accept": "application/json",
+                  "Authorization": "Bearer @{body('Get_Zendesk_token')?['access_token']}"
+                }
+              }
+            },
+            "If_ticket_found": {
+              "runAfter": {
+                "Find_ticket": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If",
+              "expression": {
+                "and": [
+                  {
+                    "greater": [
+                      "@length(body('Find_ticket')?['tickets'])",
+                      0
+                    ]
+                  }
+                ]
+              },
+              "actions": {
+                "Update_ticket": {
+                  "runAfter": {},
+                  "type": "Http",
+                  "inputs": {
+                    "method": "PUT",
+                    "uri": "https://@{parameters('Zendesk Subdomain (cczd_ZendeskSubdomain)')}.zendesk.com/api/v2/tickets/@{first(body('Find_ticket')?['tickets'])?['id']}.json",
+                    "headers": {
+                      "Content-Type": "application/json",
+                      "Accept": "application/json",
+                      "Authorization": "Bearer @{body('Get_Zendesk_token')?['access_token']}"
+                    },
+                    "body": {
+                      "ticket": {
+                        "comment": {
+                          "body": "Call ended (Dynamics 365 Contact Center)\nTalk time: @{if(empty(body('Get_conversation')?['msdyn_conversationtalktimeinseconds']), 'n/a', concat(string(div(int(body('Get_conversation')?['msdyn_conversationtalktimeinseconds']), 60)), 'm ', string(mod(int(body('Get_conversation')?['msdyn_conversationtalktimeinseconds']), 60)), 's'))} | Wait: @{if(empty(body('Get_conversation')?['msdyn_conversationfirstwaittimeinseconds']), 'n/a', concat(string(div(int(body('Get_conversation')?['msdyn_conversationfirstwaittimeinseconds']), 60)), 'm ', string(mod(int(body('Get_conversation')?['msdyn_conversationfirstwaittimeinseconds']), 60)), 's'))} | Handle: @{if(empty(body('Get_conversation')?['msdyn_conversationhandletimeinseconds']), 'n/a', concat(string(div(int(body('Get_conversation')?['msdyn_conversationhandletimeinseconds']), 60)), 'm ', string(mod(int(body('Get_conversation')?['msdyn_conversationhandletimeinseconds']), 60)), 's'))}\nCustomer sentiment: @{coalesce(body('Get_conversation')?['msdyn_customersentimentlabel@OData.Community.Display.V1.FormattedValue'], 'n/a')}\nHandled by virtual agent: @{if(equals(body('Get_conversation')?['msdyn_copilotengaged'], true), 'yes', 'no')}\nAI quality score: @{coalesce(coalesce(first(coalesce(outputs('Get_quality_evaluation')?['body/value'], json('[]'))), json('{}'))?['msdyn_evaluationscore'], 'not available yet')}@{if(empty(json(coalesce(coalesce(first(coalesce(outputs('Get_quality_evaluation')?['body/value'], json('[]'))), json('{}'))?['msdyn_responsejson'], '{}'))?['action_name']), '', concat(' (', json(coalesce(coalesce(first(coalesce(outputs('Get_quality_evaluation')?['body/value'], json('[]'))), json('{}'))?['msdyn_responsejson'], '{}'))?['action_name'], ')'))}\nAI summary: @{coalesce(json(coalesce(coalesce(first(coalesce(outputs('Get_quality_evaluation')?['body/value'], json('[]'))), json('{}'))?['msdyn_responsejson'], '{}'))?['overall_summary'], 'not available yet')}\nRecording and transcript: @{parameters('D365 Environment URL (cczd_D365OrgUrl)')}/main.aspx?pagetype=entityrecord&etn=msdyn_ocliveworkitem&id=@{triggerOutputs()?['body/activityid']}",
+                          "public": false
+                        },
+                        "additional_tags": [
+                          "d365cc-ended"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              }
+            }
+          },
+          "else": {
+            "actions": {}
+          }
+        }
+      },
+      "outputs": {}
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

@@ -5,9 +5,9 @@
       <LocalizedName description="D365 Contact Center - Zendesk Call Journey" languagecode="1033" />
     </LocalizedNames>
     <Descriptions>
-      <Description description="Flow that creates a Zendesk ticket for every Dynamics 365 Contact Center voice call an agent accepts. The Zendesk app opens the ticket for the agent." languagecode="1033" />
+      <Description description="Flows that create a Zendesk ticket for every Dynamics 365 Contact Center voice call an agent accepts, and add the call summary, AI quality score and recording and transcript link when the call ends." languagecode="1033" />
     </Descriptions>
-    <Version>1.0.0.0</Version>
+    <Version>1.1.0.0</Version>
     <Managed>0</Managed>
     <Publisher>
       <UniqueName>D365CCZendeskCommunity</UniqueName>
@@ -80,6 +80,7 @@
     </Publisher>
     <RootComponents>
       <RootComponent type="29" id="{d6a0e1b4-5c2f-4f6b-9a41-7a1d3c8e2f10}" behavior="0" />
+      <RootComponent type="29" id="{7b3e5c1a-9d24-4e8f-b6a0-2c4f1d8e9a35}" behavior="0" />
     </RootComponents>
     <MissingDependencies>
       <MissingDependency>

@@ -1,0 +1,17 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
+<style>html,body{margin:0;height:100%;overflow:hidden;font-family:"Segoe UI",Arial,sans-serif}iframe{border:0;width:100%;height:calc(100% - 36px);display:block}
+.bar{height:36px;display:flex;align-items:center;gap:16px;padding:0 12px;border-bottom:1px solid #d8dcde;font-size:13px;box-sizing:border-box}
+.bar a{color:#0078d4;text-decoration:none}</style></head><body>
+<div class="bar"><span>Dynamics 365 Contact Center: recording and transcript</span><a id="tab" target="_blank" rel="noopener">Open in a new tab &#8599;</a></div>
+<iframe id="f" allow="autoplay; clipboard-write" title="Dynamics 365 call"></iframe>
+<script>
+ZAFClient.init();
+var p = location.hash.slice(1).split('|');
+var u = p[0] ? decodeURIComponent(p[0]) : '';
+var open = p[1] ? decodeURIComponent(p[1]) : u;
+if (/^https:\/\/[^\/]+\.dynamics\.com\//i.test(u)) { document.getElementById('f').src = u; document.getElementById('tab').href = open; }
+</script></body></html>
+
+

@@ -31,6 +31,12 @@
         <Description languagecode="1033" description="Creates a Zendesk ticket (tag d365cc) for each voice call an agent accepts; the Zendesk app opens it for the agent." />
       </Descriptions>
     </Workflow>
+  <Workflow WorkflowId="{7b3e5c1a-9d24-4e8f-b6a0-2c4f1d8e9a35}" Name="D365 Contact Center - Add call summary to Zendesk ticket when a call ends" Description="When a voice conversation ends, adds the call metrics, AI quality score and a recording and transcript link to the Zendesk ticket.">
+      <JsonFileName>/Workflows/D365ContactCenter-AddcallsummarytoZendeskticketwhenacallends-7B3E5C1A-9D24-4E8F-B6A0-2C4F1D8E9A35.json</JsonFileName>
+      <Type>1</Type><Subprocess>0</Subprocess><Category>5</Category><Mode>0</Mode><Scope>4</Scope><OnDemand>0</OnDemand><TriggerOnCreate>0</TriggerOnCreate><TriggerOnDelete>0</TriggerOnDelete><AsyncAutodelete>0</AsyncAutodelete><SyncWorkflowLogOnFailure>0</SyncWorkflowLogOnFailure><StateCode>0</StateCode><StatusCode>1</StatusCode><RunAs>1</RunAs><IsTransacted>1</IsTransacted><IntroducedVersion>1.1.0.0</IntroducedVersion><IsCustomizable>1</IsCustomizable><BusinessProcessType>0</BusinessProcessType><IsCustomProcessingStepAllowedForOtherPublishers>1</IsCustomProcessingStepAllowedForOtherPublishers><ModernFlowType>0</ModernFlowType><PrimaryEntity>none</PrimaryEntity>
+      <LocalizedNames><LocalizedName languagecode="1033" description="D365 Contact Center - Add call summary to Zendesk ticket when a call ends" /></LocalizedNames>
+      <Descriptions><Description languagecode="1033" description="When a voice conversation ends, adds the call metrics, AI quality score and a recording and transcript link to the Zendesk ticket." /></Descriptions>
+    </Workflow>
   </Workflows>
   <FieldSecurityProfiles></FieldSecurityProfiles>
   <Templates />
