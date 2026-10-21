@@ -53,7 +53,7 @@ function render(note) {
   document.getElementById('rec').onclick = function () {
     client.invoke('instances.create', {
       location: 'modal', url: 'assets/modal.html#' + encodeURIComponent(convUrl(true)) + '|' + encodeURIComponent(convUrl(false)),
-      size: { width: '92vw', height: '88vh' }
+      size: { width: '78vw', height: '70vh' }
     });
   };
 }
