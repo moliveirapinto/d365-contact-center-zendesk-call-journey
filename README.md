@@ -9,7 +9,9 @@ This community project connects the two:
 
 ![The Dynamics 365 Contact Center panel open inside Zendesk](docs/images/01-widget-panel-in-zendesk.png)
 
-![A new call ticket that opened automatically for the agent](docs/images/02-ticket-opens-for-the-agent.png)
+![A call ticket in Zendesk for the inbound call, with the D365 conversation id and the caller's interaction history](docs/images/02-call-ticket-in-zendesk.png)
+
+![A new call ticket that opened automatically for the agent](docs/images/03-ticket-opens-for-the-agent.png)
 
 > **Status: first version (1.0.0).** It covers the panel, the ticket and the pop-up. It does **not** yet have the call-journey card, the recording and transcript button, or the quality score that the [ServiceNow](https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey) and [Salesforce](https://github.com/moliveirapinto/d365-contact-center-salesforce-call-journey) versions have. See [Limits](#limits-and-known-gaps).
 
@@ -43,7 +45,7 @@ This community project connects the two:
 | **Zendesk screen pop** | The ticket opens in the agent's workspace within a few seconds of being created, and is assigned to that agent if nobody owns it. |
 | **Dynamics 365** | A solution with one Power Automate flow, three environment variables and one connection reference. |
 
-![Install settings of the Zendesk app](docs/images/03-app-settings.png)
+![Install settings of the Zendesk app](docs/images/04-app-settings.png)
 
 ## How it works
 
