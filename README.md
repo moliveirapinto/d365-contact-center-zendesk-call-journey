@@ -151,7 +151,7 @@ START with STEP 0.
 
 ## Let an AI assistant install the call journey
 
-This is the third step, after you have a Zendesk account and the panel opens in Zendesk (see the two sections above). Copy the prompt into an AI assistant that can work in a browser and run commands (**Claude** with computer or browser use, **Claude Code**, or similar). It installs the Zendesk app, creates the OAuth client, imports the Dynamics 365 solution, fills in the settings, turns the flow on and tests it.
+You do not need a Zendesk account first: if you have none, the assistant creates the free trial with you (PHASE 0B). It still works if you already have one. Copy the prompt into an AI assistant that can work in a browser and run commands (**Claude** with computer or browser use, **Claude Code**, or similar). It installs the Zendesk app, creates the OAuth client, imports the Dynamics 365 solution, fills in the settings, turns the flow on and tests it.
 
 > ✅ **Nothing to edit.** Paste the prompt exactly as it is. The assistant starts by **asking you** for your Zendesk address, your Dynamics 365 environment URL and who will test. Have those ready. Anything in `<angle brackets>` is filled in by the assistant. You sign in yourself, including MFA. You never paste a password into the chat. The assistant moves the OAuth client secret straight from Zendesk into the Dynamics 365 setting and never writes it to a file or a message.
 
@@ -177,11 +177,18 @@ HOW TO WORK
 - After each phase give one or two lines: OK / WARNING / FAILED.
 
 PHASE 0 - QUESTIONS (ask all in one message, then wait)
-1. My Zendesk address (for example acme.zendesk.com). Trial, sandbox or production? If production, warn me and continue only after "yes, production".
+1. My Zendesk address (for example acme.zendesk.com), or "I don't have one yet" (then you create a free trial for me in PHASE 0B). Trial, sandbox or production? If production, warn me and continue only after "yes, production".
 2. My Dynamics 365 Contact Center environment URL (for example https://contoso.crm.dynamics.com) and the environment's name in Power Apps.
 3. Which Zendesk agents and which Dynamics 365 agents will test? (A Dynamics 365 agent with a voice queue and a Zendesk agent who has the Agent Workspace open.)
 4. Confirm I can sign in as: (a) a Zendesk admin, (b) a Power Platform / Dynamics 365 admin (System Administrator or System Customizer) in that environment, (c) a Contact Center agent for the test call.
 5. Is the Dynamics 365 Contact Center panel already working inside Zendesk (the connector)? If not, run the section "Need help installing the Zendesk connector?" of the README first.
+
+PHASE 0B - CREATE A FREE ZENDESK TRIAL (only if I said I have no Zendesk account; otherwise skip)
+1. Open https://www.zendesk.com/register/ in the browser and fill in the form with my work e-mail, my name and my company. If the page has moved, search for "Zendesk free trial". No credit card is needed; if one is requested, STOP and tell me.
+2. I handle every step that needs me: the captcha, the verification e-mail ("Verify my email"), choosing the password, and the e-mailed passcode (two-step verification) on first sign-in. Tell me exactly when you need each one, then wait. Never ask me to paste a password or passcode into this chat.
+3. Zendesk generates the address, like https://<name>.zendesk.com. Sign in at https://<name>.zendesk.com/agent. If a setup wizard appears, skip or finish it with the defaults.
+4. Verify I am the admin: https://<name>.zendesk.com/admin opens Admin Center and shows Apps and integrations. Note the address and use it for the rest of this install.
+5. It is a 14-day trial: testing only, no real customer data. Tell me the trial end date if Zendesk shows it.
 
 PHASE 1 - PREFLIGHT (read-only)
 1. Download A and B. A must be a valid zip with manifest.json at the root; B a valid zip with solution.xml, customizations.xml, Workflows/*.json (two files), WebResources/ and environmentvariabledefinitions/ (four folders). Expected sizes: A about 7,700 bytes, B about 18,000 bytes (different only if the README names newer files). Also download the form script (no unzip needed): https://raw.githubusercontent.com/moliveirapinto/d365-contact-center-zendesk-call-journey/main/dynamics365/Apply-ConversationFormFix.ps1 (file C).
