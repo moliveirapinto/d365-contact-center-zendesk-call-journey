@@ -81,6 +81,9 @@
     <RootComponents>
       <RootComponent type="29" id="{d6a0e1b4-5c2f-4f6b-9a41-7a1d3c8e2f10}" behavior="0" />
       <RootComponent type="29" id="{7b3e5c1a-9d24-4e8f-b6a0-2c4f1d8e9a35}" behavior="0" />
+      <RootComponent type="61" schemaName="new_d365cc_evaluationpanefix.js" behavior="0" />
+      <RootComponent type="62" schemaName="new_ContactCenterCallReview" behavior="0" />
+      <RootComponent type="80" schemaName="new_ContactCenterCallReview" behavior="0" />
     </RootComponents>
     <MissingDependencies>
       <MissingDependency>

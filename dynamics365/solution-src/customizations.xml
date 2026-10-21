@@ -44,7 +44,75 @@
   <EntityRelationships />
   <OrganizationSettings />
   <optionsets />
+  <WebResources>
+    <WebResource>
+      <WebResourceId>{3da807d7-d781-4f86-a8f4-ad94de276a99}</WebResourceId>
+      <Name>new_d365cc_evaluationpanefix.js</Name>
+      <DisplayName>D365 Contact Center - Conversation form fixes (Evaluation Details pane, transcript in Salesforce pop-up)</DisplayName>
+      <WebResourceType>3</WebResourceType>
+      <IntroducedVersion>1.0</IntroducedVersion>
+      <IsEnabledForMobileClient>0</IsEnabledForMobileClient>
+      <IsAvailableForMobileOffline>0</IsAvailableForMobileOffline>
+      <IsCustomizable>1</IsCustomizable>
+      <CanBeDeleted>1</CanBeDeleted>
+      <IsHidden>0</IsHidden>
+      <FileName>/WebResources/new_d365cc_evaluationpanefixjs3DA807D7-D781-4F86-A8F4-AD94DE276A99</FileName>
+    </WebResource>
+  </WebResources>
   <CustomControls />
+  <AppModuleSiteMaps>
+    <AppModuleSiteMap>
+      <SiteMapUniqueName>new_ContactCenterCallReview</SiteMapUniqueName>
+      <EnableCollapsibleGroups>False</EnableCollapsibleGroups>
+      <ShowHome>True</ShowHome>
+      <ShowPinned>True</ShowPinned>
+      <ShowRecents>True</ShowRecents>
+      <SiteMap IntroducedVersion="7.0.0.0">
+        <Area Id="cc_area" ShowGroups="true" Title="Calls">
+          <Group Id="cc_grp" Title="Calls">
+            <SubArea Id="cc_conv" Entity="msdyn_ocliveworkitem" Title="Conversations" />
+          </Group>
+        </Area>
+      </SiteMap>
+      <LocalizedNames>
+        <LocalizedName description="Contact Center Call Review" languagecode="1033" />
+      </LocalizedNames>
+    </AppModuleSiteMap>
+  </AppModuleSiteMaps>
+  <AppModules>
+    <AppModule>
+      <UniqueName>new_ContactCenterCallReview</UniqueName>
+      <IntroducedVersion>1.0</IntroducedVersion>
+      <WebResourceId>21aa1d8b-2c55-e711-80f0-000d3aa2b1c4</WebResourceId>
+      <OptimizedFor></OptimizedFor>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+      <FormFactor>1</FormFactor>
+      <ClientType>4</ClientType>
+      <NavigationType>0</NavigationType>
+      <AppModuleComponents>
+        <AppModuleComponent type="1" schemaName="entity" />
+        <AppModuleComponent type="60" id="{136b3800-234b-420c-9d8a-458b61cb2263}" />
+        <AppModuleComponent type="62" schemaName="new_ContactCenterCallReview" />
+      </AppModuleComponents>
+      <AppModuleRoleMaps>
+        <Role id="{627090ff-40a3-4053-8790-584edc5be201}" />
+        <Role id="{119f245c-3cc8-4b62-b31c-d1a046ced15d}" />
+      </AppModuleRoleMaps>
+      <LocalizedNames>
+        <LocalizedName description="Contact Center Call Review" languagecode="1033" />
+      </LocalizedNames>
+      <Descriptions>
+        <Description description="Lightweight read-only viewer for Contact Center conversations, embedded in Salesforce, ServiceNow and Zendesk." languagecode="1033" />
+      </Descriptions>
+      <appsettings>
+        <appsetting settingdefinitionid.uniquename="AppChannel">
+          <iscustomizable>1</iscustomizable>
+          <value>1</value>
+        </appsetting>
+      </appsettings>
+    </AppModule>
+  </AppModules>
   <EntityDataProviders />
   <connectionreferences>
     <connectionreference connectionreferencelogicalname="cczd_dataverse">

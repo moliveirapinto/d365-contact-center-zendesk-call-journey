@@ -262,6 +262,13 @@ The flow needs a way to create tickets. Zendesk is retiring API tokens (April 30
    | D365 Environment URL | `https://contoso.crm.dynamics.com` (used for the recording and transcript link) |
 
 5. **Import**. Open the solution, check the connection reference is connected, and turn **on** both flows: **D365 Contact Center – Create Zendesk ticket when an agent accepts a call** and **D365 Contact Center – Add call summary to Zendesk ticket when a call ends**.
+6. **Show the AI quality evaluation in the Recording & transcript pop-up.** The solution contains a small read-only app, **Contact Center Call Review**, and a form script. The pop-up opens the call in that app, **not** in the Customer Service workspace, so it never registers the agent for new calls. Run once, signed in with `az login` as a System Administrator or Customizer:
+
+   ```powershell
+   pwsh -File dynamics365/Apply-ConversationFormFix.ps1 -OrgUrl https://contoso.crm.dynamics.com
+   ```
+
+   Then open **Apps → Contact Center Call Review → Share** and add the agents' security roles (never "everyone"). Without the script the pop-up still shows the recording and transcript, but not the evaluation pane.
 
 ### Step 4 – Dynamics 365 checks (only if something does not work)
 
@@ -290,7 +297,7 @@ The flow needs a way to create tickets. Zendesk is retiring API tokens (April 30
 
 ## Limits and known gaps
 
-- **Recording and transcript open Dynamics 365, they are not copied into Zendesk.** The ticket card and note link to the Dynamics 365 conversation. The **Recording & transcript** pop-up frames that page inside Zendesk, so the agent must be signed in to Dynamics 365 in the same browser with third-party cookies allowed for `[*.]dynamics.com` and `[*.]microsoftonline.com`, and, if your environment enforces a content security policy, `https://*.zdusercontent.com` in its `frame-ancestors` list. If the pop-up stays blank, use **Open in a new tab** at the top of the pop-up. The transcript text and the call timeline (received, connected, ended) are not on the card yet.
+- **Recording and transcript open Dynamics 365, they are not copied into Zendesk.** The ticket card and note link to the Dynamics 365 conversation. The **Recording & transcript** pop-up frames that page, in the read-only **Contact Center Call Review** app, inside Zendesk, so the agent must be signed in to Dynamics 365 in the same browser with third-party cookies allowed for `[*.]dynamics.com` and `[*.]microsoftonline.com`, and, if your environment enforces a content security policy, `https://*.zdusercontent.com` in its `frame-ancestors` list. If the pop-up stays blank, use **Open in a new tab** at the top of the pop-up. The transcript text and the call timeline (received, connected, ended) are not on the card yet.
 - **The summary note arrives about 2 minutes after the call ends**, to give the AI quality evaluation time to finish. If the evaluation is not ready by then, the note says so.
 - **Not supported by Microsoft or Zendesk.** Microsoft documents the embeddable widget for Salesforce only. It works in a Zendesk app iframe, but Microsoft does not test it there.
 - **Widget version: this package uses the classic embeddable widget, not the new "Contact Center Edge" widget.** The Salesforce version of this project can also use the new Edge widget (Pulse portal, with a Copilot panel). We tested that in a Zendesk app on 2026-10-08 and it **does not load**: the Edge portal only allows itself to be framed by an approved list of sites, and a Zendesk app runs on `*.apps.zdusercontent.com`, which is not on the list, so the browser blocks it (console: *"Framing 'https://portal.us.contactcenterai.powerplatform.com/' violates the following Content Security Policy directive: frame-ancestors …"*). The same test with the classic widget loads fine. Nothing in this package needs changing; keep using the classic widget here. Because of this, the **Copilot panel of the Edge widget is not available inside Zendesk** today. If Microsoft adds Zendesk app origins to the Edge portal's allowed list, the only change is the iframe address in `zendesk/app-src/assets/widget.html`.
@@ -306,6 +313,7 @@ The flow needs a way to create tickets. Zendesk is retiring API tokens (April 30
 |---|---|
 | [`zendesk/D365ContactCenter_Zendesk_App_1.1.0.zip`](zendesk/D365ContactCenter_Zendesk_App_1.1.0.zip) | The Zendesk private app (install it as is) |
 | [`zendesk/app-src/`](zendesk/app-src) | Source of the app: `manifest.json`, `assets/widget.html` (top-bar panel), `assets/background.html` (ticket pop-up), `assets/sidebar.html` (call card) and `assets/modal.html` (recording pop-up) |
+| [`dynamics365/Apply-ConversationFormFix.ps1`](dynamics365/Apply-ConversationFormFix.ps1) | Adds the form script that shows the AI quality evaluation pane in the pop-up (run once, Step 3) |
 | [`dynamics365/D365ContactCenterZendeskCallJourney_1_1_0_0.zip`](dynamics365/D365ContactCenterZendeskCallJourney_1_1_0_0.zip) | The Dynamics 365 solution (unmanaged): two flows, 4 environment variables, 1 connection reference |
 | [`dynamics365/solution-src/`](dynamics365/solution-src) | Unpacked source of the solution |
 | [`dynamics365/build-solution.ps1`](dynamics365/build-solution.ps1) | Rebuilds the flow definition and the solution zip |
