@@ -1,0 +1,276 @@
+{
+    "properties":  {
+                       "connectionReferences":  {
+                                                    "shared_commondataserviceforapps":  {
+                                                                                            "runtimeSource":  "embedded",
+                                                                                            "connection":  {
+                                                                                                               "connectionReferenceLogicalName":  "cczd_dataverse"
+                                                                                                           },
+                                                                                            "api":  {
+                                                                                                        "name":  "shared_commondataserviceforapps"
+                                                                                                    }
+                                                                                        }
+                                                },
+                       "definition":  {
+                                          "$schema":  "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                                          "contentVersion":  "1.0.0.0",
+                                          "parameters":  {
+                                                             "$connections":  {
+                                                                                  "defaultValue":  {
+
+                                                                                                   },
+                                                                                  "type":  "Object"
+                                                                              },
+                                                             "$authentication":  {
+                                                                                     "defaultValue":  {
+
+                                                                                                      },
+                                                                                     "type":  "SecureObject"
+                                                                                 },
+                                                             "Zendesk Subdomain (cczd_ZendeskSubdomain)":  {
+                                                                                                               "defaultValue":  "",
+                                                                                                               "type":  "String",
+                                                                                                               "metadata":  {
+                                                                                                                                "schemaName":  "cczd_ZendeskSubdomain"
+                                                                                                                            }
+                                                                                                           },
+                                                             "Zendesk OAuth Client ID (cczd_ZendeskClientId)":  {
+                                                                                                                    "defaultValue":  "",
+                                                                                                                    "type":  "String",
+                                                                                                                    "metadata":  {
+                                                                                                                                     "schemaName":  "cczd_ZendeskClientId"
+                                                                                                                                 }
+                                                                                                                },
+                                                             "Zendesk OAuth Client Secret (cczd_ZendeskClientSecret)":  {
+                                                                                                                            "defaultValue":  "",
+                                                                                                                            "type":  "String",
+                                                                                                                            "metadata":  {
+                                                                                                                                             "schemaName":  "cczd_ZendeskClientSecret"
+                                                                                                                                         }
+                                                                                                                        }
+                                                         },
+                                          "triggers":  {
+                                                           "When_a_voice_call_changes":  {
+                                                                                             "type":  "OpenApiConnectionWebhook",
+                                                                                             "inputs":  {
+                                                                                                            "host":  {
+                                                                                                                         "connectionName":  "shared_commondataserviceforapps",
+                                                                                                                         "apiId":  "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                                                                                         "operationId":  "SubscribeWebhookTrigger"
+                                                                                                                     },
+                                                                                                            "parameters":  {
+                                                                                                                               "subscriptionRequest/message":  4,
+                                                                                                                               "subscriptionRequest/entityname":  "msdyn_ocliveworkitem",
+                                                                                                                               "subscriptionRequest/scope":  4,
+                                                                                                                               "subscriptionRequest/filteringattributes":  "msdyn_activeagentassignedon,msdyn_isagentaccepted,msdyn_isabandoned,statuscode",
+                                                                                                                               "subscriptionRequest/filterexpression":  "msdyn_activeagentassignedon ne null or msdyn_isabandoned eq true or statuscode eq 4 or statuscode eq 5"
+                                                                                                                           },
+                                                                                                            "authentication":  "@parameters(\u0027$authentication\u0027)"
+                                                                                                        }
+                                                                                         }
+                                                       },
+                                          "actions":  {
+                                                          "Get_conversation":  {
+                                                                                   "runAfter":  {
+
+                                                                                                },
+                                                                                   "type":  "OpenApiConnection",
+                                                                                   "inputs":  {
+                                                                                                  "host":  {
+                                                                                                               "connectionName":  "shared_commondataserviceforapps",
+                                                                                                               "apiId":  "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                                                                               "operationId":  "GetItem"
+                                                                                                           },
+                                                                                                  "parameters":  {
+                                                                                                                     "entityName":  "msdyn_ocliveworkitems",
+                                                                                                                     "recordId":  "@triggerOutputs()?[\u0027body/activityid\u0027]",
+                                                                                                                     "$select":  "msdyn_channel,msdyn_isagentaccepted,msdyn_isabandoned,msdyn_activeagentassignedon,statuscode,_msdyn_activeagentid_value"
+                                                                                                                 },
+                                                                                                  "authentication":  "@parameters(\u0027$authentication\u0027)"
+                                                                                              }
+                                                                               },
+                                                          "If_voice_call_with_agent":  {
+                                                                                           "runAfter":  {
+                                                                                                            "Get_conversation":  [
+                                                                                                                                     "Succeeded"
+                                                                                                                                 ]
+                                                                                                        },
+                                                                                           "type":  "If",
+                                                                                           "expression":  {
+                                                                                                              "and":  [
+                                                                                                                          {
+                                                                                                                              "equals":  [
+                                                                                                                                             "@string(body(\u0027Get_conversation\u0027)?[\u0027msdyn_channel\u0027])",
+                                                                                                                                             "192440000"
+                                                                                                                                         ]
+                                                                                                                          },
+                                                                                                                          {
+                                                                                                                              "not":  {
+                                                                                                                                          "equals":  [
+                                                                                                                                                         "@coalesce(body(\u0027Get_conversation\u0027)?[\u0027_msdyn_activeagentid_value\u0027], \u0027\u0027)",
+                                                                                                                                                         ""
+                                                                                                                                                     ]
+                                                                                                                                      }
+                                                                                                                          }
+                                                                                                                      ]
+                                                                                                          },
+                                                                                           "actions":  {
+                                                                                                           "Get_agent":  {
+                                                                                                                             "runAfter":  {
+
+                                                                                                                                          },
+                                                                                                                             "type":  "OpenApiConnection",
+                                                                                                                             "inputs":  {
+                                                                                                                                            "host":  {
+                                                                                                                                                         "connectionName":  "shared_commondataserviceforapps",
+                                                                                                                                                         "apiId":  "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                                                                                                                         "operationId":  "GetItem"
+                                                                                                                                                     },
+                                                                                                                                            "parameters":  {
+                                                                                                                                                               "entityName":  "systemusers",
+                                                                                                                                                               "recordId":  "@body(\u0027Get_conversation\u0027)?[\u0027_msdyn_activeagentid_value\u0027]",
+                                                                                                                                                               "$select":  "internalemailaddress"
+                                                                                                                                                           },
+                                                                                                                                            "authentication":  "@parameters(\u0027$authentication\u0027)"
+                                                                                                                                        }
+                                                                                                                         },
+                                                                                                           "Get_Zendesk_token":  {
+                                                                                                                                     "runAfter":  {
+                                                                                                                                                      "Get_agent":  [
+                                                                                                                                                                        "Succeeded"
+                                                                                                                                                                    ]
+                                                                                                                                                  },
+                                                                                                                                     "type":  "Http",
+                                                                                                                                     "inputs":  {
+                                                                                                                                                    "method":  "POST",
+                                                                                                                                                    "uri":  "https://@{parameters(\u0027Zendesk Subdomain (cczd_ZendeskSubdomain)\u0027)}.zendesk.com/oauth/tokens",
+                                                                                                                                                    "headers":  {
+                                                                                                                                                                    "Content-Type":  "application/json",
+                                                                                                                                                                    "Accept":  "application/json"
+                                                                                                                                                                },
+                                                                                                                                                    "body":  {
+                                                                                                                                                                 "grant_type":  "client_credentials",
+                                                                                                                                                                 "client_id":  "@parameters(\u0027Zendesk OAuth Client ID (cczd_ZendeskClientId)\u0027)",
+                                                                                                                                                                 "client_secret":  "@parameters(\u0027Zendesk OAuth Client Secret (cczd_ZendeskClientSecret)\u0027)",
+                                                                                                                                                                 "scope":  "read write"
+                                                                                                                                                             }
+                                                                                                                                                }
+                                                                                                                                 },
+                                                                                                           "Search_Zendesk_agent":  {
+                                                                                                                                        "runAfter":  {
+                                                                                                                                                         "Get_Zendesk_token":  [
+                                                                                                                                                                                   "Succeeded"
+                                                                                                                                                                               ]
+                                                                                                                                                     },
+                                                                                                                                        "type":  "Http",
+                                                                                                                                        "inputs":  {
+                                                                                                                                                       "method":  "GET",
+                                                                                                                                                       "uri":  "https://@{parameters(\u0027Zendesk Subdomain (cczd_ZendeskSubdomain)\u0027)}.zendesk.com/api/v2/users/search.json?query=email:@{encodeUriComponent(body(\u0027Get_agent\u0027)?[\u0027internalemailaddress\u0027])}",
+                                                                                                                                                       "headers":  {
+                                                                                                                                                                       "Accept":  "application/json",
+                                                                                                                                                                       "Authorization":  "Bearer @{body(\u0027Get_Zendesk_token\u0027)?[\u0027access_token\u0027]}"
+                                                                                                                                                                   }
+                                                                                                                                                   }
+                                                                                                                                    },
+                                                                                                           "If_agent_found":  {
+                                                                                                                                  "runAfter":  {
+                                                                                                                                                   "Search_Zendesk_agent":  [
+                                                                                                                                                                                "Succeeded"
+                                                                                                                                                                            ]
+                                                                                                                                               },
+                                                                                                                                  "type":  "If",
+                                                                                                                                  "expression":  {
+                                                                                                                                                     "and":  [
+                                                                                                                                                                 {
+                                                                                                                                                                     "greater":  [
+                                                                                                                                                                                     "@length(body(\u0027Search_Zendesk_agent\u0027)?[\u0027users\u0027])",
+                                                                                                                                                                                     0
+                                                                                                                                                                                 ]
+                                                                                                                                                                 }
+                                                                                                                                                             ]
+                                                                                                                                                 },
+                                                                                                                                  "actions":  {
+                                                                                                                                                  "If_ringing":  {
+                                                                                                                                                                     "runAfter":  {
+
+                                                                                                                                                                                  },
+                                                                                                                                                                     "type":  "If",
+                                                                                                                                                                     "expression":  {
+                                                                                                                                                                                        "and":  [
+                                                                                                                                                                                                    {
+                                                                                                                                                                                                        "equals":  [
+                                                                                                                                                                                                                       "@and(not(equals(body(\u0027Get_conversation\u0027)?[\u0027msdyn_activeagentassignedon\u0027], null)), not(equals(body(\u0027Get_conversation\u0027)?[\u0027msdyn_isagentaccepted\u0027], true)), not(equals(body(\u0027Get_conversation\u0027)?[\u0027msdyn_isabandoned\u0027], true)), not(equals(body(\u0027Get_conversation\u0027)?[\u0027statuscode\u0027], 4)), not(equals(body(\u0027Get_conversation\u0027)?[\u0027statuscode\u0027], 5)))",
+                                                                                                                                                                                                                       true
+                                                                                                                                                                                                                   ]
+                                                                                                                                                                                                    }
+                                                                                                                                                                                                ]
+                                                                                                                                                                                    },
+                                                                                                                                                                     "actions":  {
+                                                                                                                                                                                     "Add_ring_tag":  {
+                                                                                                                                                                                                          "runAfter":  {
+
+                                                                                                                                                                                                                       },
+                                                                                                                                                                                                          "type":  "Http",
+                                                                                                                                                                                                          "inputs":  {
+                                                                                                                                                                                                                         "method":  "PUT",
+                                                                                                                                                                                                                         "uri":  "https://@{parameters(\u0027Zendesk Subdomain (cczd_ZendeskSubdomain)\u0027)}.zendesk.com/api/v2/users/@{first(body(\u0027Search_Zendesk_agent\u0027)?[\u0027users\u0027])?[\u0027id\u0027]}/tags.json",
+                                                                                                                                                                                                                         "headers":  {
+                                                                                                                                                                                                                                         "Content-Type":  "application/json",
+                                                                                                                                                                                                                                         "Accept":  "application/json",
+                                                                                                                                                                                                                                         "Authorization":  "Bearer @{body(\u0027Get_Zendesk_token\u0027)?[\u0027access_token\u0027]}"
+                                                                                                                                                                                                                                     },
+                                                                                                                                                                                                                         "body":  {
+                                                                                                                                                                                                                                      "tags":  [
+                                                                                                                                                                                                                                                   "d365cc-ring"
+                                                                                                                                                                                                                                               ]
+                                                                                                                                                                                                                                  }
+                                                                                                                                                                                                                     }
+                                                                                                                                                                                                      }
+                                                                                                                                                                                 },
+                                                                                                                                                                     "else":  {
+                                                                                                                                                                                  "actions":  {
+                                                                                                                                                                                                  "Remove_ring_tag":  {
+                                                                                                                                                                                                                          "runAfter":  {
+
+                                                                                                                                                                                                                                       },
+                                                                                                                                                                                                                          "type":  "Http",
+                                                                                                                                                                                                                          "inputs":  {
+                                                                                                                                                                                                                                         "method":  "DELETE",
+                                                                                                                                                                                                                                         "uri":  "https://@{parameters(\u0027Zendesk Subdomain (cczd_ZendeskSubdomain)\u0027)}.zendesk.com/api/v2/users/@{first(body(\u0027Search_Zendesk_agent\u0027)?[\u0027users\u0027])?[\u0027id\u0027]}/tags.json",
+                                                                                                                                                                                                                                         "headers":  {
+                                                                                                                                                                                                                                                         "Content-Type":  "application/json",
+                                                                                                                                                                                                                                                         "Accept":  "application/json",
+                                                                                                                                                                                                                                                         "Authorization":  "Bearer @{body(\u0027Get_Zendesk_token\u0027)?[\u0027access_token\u0027]}"
+                                                                                                                                                                                                                                                     },
+                                                                                                                                                                                                                                         "body":  {
+                                                                                                                                                                                                                                                      "tags":  [
+                                                                                                                                                                                                                                                                   "d365cc-ring"
+                                                                                                                                                                                                                                                               ]
+                                                                                                                                                                                                                                                  }
+                                                                                                                                                                                                                                     }
+                                                                                                                                                                                                                      }
+                                                                                                                                                                                              }
+                                                                                                                                                                              }
+                                                                                                                                                                 }
+                                                                                                                                              },
+                                                                                                                                  "else":  {
+                                                                                                                                               "actions":  {
+
+                                                                                                                                                           }
+                                                                                                                                           }
+                                                                                                                              }
+                                                                                                       },
+                                                                                           "else":  {
+                                                                                                        "actions":  {
+
+                                                                                                                    }
+                                                                                                    }
+                                                                                       }
+                                                      },
+                                          "outputs":  {
+
+                                                      }
+                                      }
+                   },
+    "schemaVersion":  "1.0.0.0"
+}

@@ -1,7 +1,7 @@
 # Builds the unmanaged Dataverse solution D365ContactCenterZendeskCallJourney (source folder + zip).
 $root = Split-Path $PSScriptRoot
 $src  = Join-Path $PSScriptRoot 'solution-src'
-$out  = Join-Path $PSScriptRoot 'D365ContactCenterZendeskCallJourney_1_1_0_0.zip'
+$out  = Join-Path $PSScriptRoot 'D365ContactCenterZendeskCallJourney_1_2_0_0.zip'
 $wfId = 'd6a0e1b4-5c2f-4f6b-9a41-7a1d3c8e2f10'
 $q = "'"
 function P($n){ "@parameters(" + $q + $n + $q + ")" }
@@ -19,9 +19,13 @@ $hdr = [ordered]@{'Content-Type'='application/json';Accept='application/json';Au
 $fq = '_msdyn_cdsqueueid_value@OData.Community.Display.V1.FormattedValue'
 $fa = '_msdyn_activeagentid_value@OData.Community.Display.V1.FormattedValue'
 $comment = 'Inbound voice call received ' + (It 'msdyn_createdon') + ".`nQueue: " + (It $fq) + "`nAgent: " + (It $fa) + "`nD365 conversation: " + (It 'activityid')
+$CDS = [ordered]@{connectionName='shared_commondataserviceforapps';apiId='/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps'}
+function Hst($op){ $h=[ordered]@{}; foreach($k in $CDS.Keys){$h[$k]=$CDS[$k]}; $h.operationId=$op; $h }
+$trig1 = [ordered]@{When_an_agent_accepts_a_voice_call=[ordered]@{type='OpenApiConnectionWebhook';inputs=[ordered]@{host=(Hst 'SubscribeWebhookTrigger');parameters=[ordered]@{'subscriptionRequest/message'=3;'subscriptionRequest/entityname'='msdyn_ocliveworkitem';'subscriptionRequest/scope'=4;'subscriptionRequest/filteringattributes'='msdyn_isagentaccepted';'subscriptionRequest/filterexpression'="msdyn_isagentaccepted eq true"};authentication=$authP}}}
+
 $actions = [ordered]@{}
-$actions.List_accepted_voice_calls = [ordered]@{runAfter=@{};type='OpenApiConnection';inputs=[ordered]@{host=$host_;parameters=[ordered]@{entityName='msdyn_ocliveworkitems';'$select'='subject,msdyn_createdon,msdyn_activeagentassignedon,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_customer_value,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value';'$filter'="msdyn_channel eq '192440000' and msdyn_activeagentassignedon ne null and createdon ge @{addMinutes(utcNow(), -30)}";'$top'=20};authentication=$authP}}
-$actions.Get_Zendesk_token = [ordered]@{runAfter=[ordered]@{List_accepted_voice_calls=@('Succeeded')};type='Http';inputs=[ordered]@{method='POST';uri="$base/oauth/tokens";headers=[ordered]@{'Content-Type'='application/json';Accept='application/json'};body=[ordered]@{grant_type='client_credentials';client_id=('@parameters(' + $q + $pCid + $q + ')');client_secret=('@parameters(' + $q + $pSec + $q + ')');scope='read write'}}}
+$actions.Get_conversation = [ordered]@{runAfter=@{};type='OpenApiConnection';inputs=[ordered]@{host=(Hst 'GetItem');parameters=[ordered]@{entityName='msdyn_ocliveworkitems';recordId="@triggerOutputs()?['body/activityid']";'$select'='msdyn_channel,subject,msdyn_createdon,msdyn_activeagentassignedon,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_customer_value,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value'};authentication=$authP}}
+$actions.Get_Zendesk_token = [ordered]@{runAfter=[ordered]@{Get_conversation=@('Succeeded')};type='Http';inputs=[ordered]@{method='POST';uri="$base/oauth/tokens";headers=[ordered]@{'Content-Type'='application/json';Accept='application/json'};body=[ordered]@{grant_type='client_credentials';client_id=('@parameters(' + $q + $pCid + $q + ')');client_secret=('@parameters(' + $q + $pSec + $q + ')');scope='read write'}}}
 $inside = [ordered]@{}
 $inside.Get_customer = [ordered]@{runAfter=@{};type='OpenApiConnection';inputs=[ordered]@{host=$host_;parameters=[ordered]@{entityName='contacts';'$select'='fullname,mobilephone,telephone1,emailaddress1';'$filter'="contactid eq '@{coalesce(items('For_each_call')?['_msdyn_customer_value'], '00000000-0000-0000-0000-000000000000')}'";'$top'=1};authentication=$authP}}
 $inside.Upsert_requester = [ordered]@{runAfter=[ordered]@{Get_customer=@('Succeeded','Failed')};type='Http';inputs=[ordered]@{method='POST';uri="$base/api/v2/users/create_or_update.json";headers=$hdr;body=[ordered]@{user=[ordered]@{name=('@coalesce(' + (F 'fullname') + ", 'Unknown caller')");email=('@coalesce(' + (F 'emailaddress1') + ", 'unknown.caller@example.com')");phone=('@coalesce(' + (F 'mobilephone') + ', ' + (F 'telephone1') + ')');role='end-user'}}}}
@@ -29,17 +33,15 @@ $inside.Create_Zendesk_ticket = [ordered]@{runAfter=[ordered]@{Upsert_requester=
 $loop = [ordered]@{}
 $loop.Find_existing_ticket = [ordered]@{runAfter=@{};type='Http';inputs=[ordered]@{method='GET';uri=("$base/api/v2/tickets.json?external_id=" + (It 'activityid'));headers=[ordered]@{Accept='application/json';Authorization=$bearer}}}
 $loop.Check_new_call = [ordered]@{runAfter=[ordered]@{Find_existing_ticket=@('Succeeded')};type='If';expression=[ordered]@{and=@(@{equals=@(('@length(body(' + $q + 'Find_existing_ticket' + $q + ')?[' + $q + 'tickets' + $q + '])'),0)})};actions=$inside;else=@{actions=@{}}}
-$actions.For_each_call = [ordered]@{runAfter=[ordered]@{Get_Zendesk_token=@('Succeeded')};type='Foreach';foreach=('@outputs(' + $q + 'List_accepted_voice_calls' + $q + ')?[' + $q + 'body/value' + $q + ']');actions=$loop}
+$actions.For_each_call = [ordered]@{runAfter=[ordered]@{Get_Zendesk_token=@('Succeeded')};type='Foreach';foreach="@if(equals(string(body('Get_conversation')?['msdyn_channel']), '192440000'), createArray(body('Get_conversation')), createArray())";actions=$loop}
 function EnvP($label,$schema){ [ordered]@{defaultValue='';type='String';metadata=@{schemaName=$schema}} }
 $params = [ordered]@{'$connections'=[ordered]@{defaultValue=@{};type='Object'};'$authentication'=[ordered]@{defaultValue=@{};type='SecureObject'}}
 $params[$pSub]=EnvP $pSub 'cczd_ZendeskSubdomain'; $params[$pCid]=EnvP $pCid 'cczd_ZendeskClientId'; $params[$pSec]=EnvP $pSec 'cczd_ZendeskClientSecret'
-$def = [ordered]@{'$schema'='https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#';contentVersion='1.0.0.0';parameters=$params;triggers=[ordered]@{Every_minute=[ordered]@{type='Recurrence';recurrence=[ordered]@{frequency='Minute';interval=1}}};actions=$actions;outputs=@{}}
+$def = [ordered]@{'$schema'='https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#';contentVersion='1.0.0.0';parameters=$params;triggers=$trig1;actions=$actions;outputs=@{}}
 $flow = [ordered]@{properties=[ordered]@{connectionReferences=[ordered]@{shared_commondataserviceforapps=[ordered]@{runtimeSource='embedded';connection=@{connectionReferenceLogicalName='cczd_dataverse'};api=@{name='shared_commondataserviceforapps'}}};definition=$def};schemaVersion='1.0.0.0'}
 # ---- Flow 2: when a voice conversation ends, add the call summary, AI quality score and recording/transcript link to the Zendesk ticket
 $wf2Id = '7b3e5c1a-9d24-4e8f-b6a0-2c4f1d8e9a35'
 $pOrg = 'D365 Environment URL (cczd_D365OrgUrl)'
-$CDS = [ordered]@{connectionName='shared_commondataserviceforapps';apiId='/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps'}
-function Hst($op){ $h=[ordered]@{}; foreach($k in $CDS.Keys){$h[$k]=$CDS[$k]}; $h.operationId=$op; $h }
 $ev = "if(equals(length(coalesce(outputs('Get_quality_evaluation')?['body/value'], json('[]'))), 0), json('{}'), first(outputs('Get_quality_evaluation')?['body/value']))"
 $ej = "json(coalesce(${ev}?['msdyn_responsejson'], '{}'))"
 function Dur($f){ "if(equals(body('Get_conversation')?['$f'], null), 'n/a', concat(string(div(int(body('Get_conversation')?['$f']), 60)), 'm ', string(mod(int(body('Get_conversation')?['$f']), 60)), 's'))" }
@@ -65,8 +67,30 @@ New-Item -ItemType Directory -Force "$src\Workflows" | Out-Null
 $wfFile = "D365ContactCenter-CreateZendeskticketwhenanagentacce-$($wfId.ToUpper()).json"
 [IO.File]::WriteAllText("$src\Workflows\$wfFile", ($flow | ConvertTo-Json -Depth 40), (New-Object Text.UTF8Encoding $false))
 [IO.File]::WriteAllText("$src\Workflows\$wf2File", ($flow2 | ConvertTo-Json -Depth 40), (New-Object Text.UTF8Encoding $false))
+# ---- Flow 3: ring signal. While a voice call rings for an agent, tag the matching Zendesk agent user (d365cc-ring) so the Zendesk app can show an alert; the tag is removed when the call is accepted, dropped or ended.
+$wf3Id = '3c9a7e52-6b18-4d0f-a5e3-8f1b2d4c6a70'
+$tagUrl = "$base/api/v2/users/@{first(body('Search_Zendesk_agent')?['users'])?['id']}/tags.json"
+$a3 = [ordered]@{}
+$a3.Get_conversation = [ordered]@{runAfter=@{};type='OpenApiConnection';inputs=[ordered]@{host=(Hst 'GetItem');parameters=[ordered]@{entityName='msdyn_ocliveworkitems';recordId="@triggerOutputs()?['body/activityid']";'$select'='msdyn_channel,msdyn_isagentaccepted,msdyn_isabandoned,msdyn_activeagentassignedon,statuscode,_msdyn_activeagentid_value'};authentication=$authP}}
+$in3 = [ordered]@{}
+$in3.Get_agent = [ordered]@{runAfter=@{};type='OpenApiConnection';inputs=[ordered]@{host=(Hst 'GetItem');parameters=[ordered]@{entityName='systemusers';recordId="@body('Get_conversation')?['_msdyn_activeagentid_value']";'$select'='internalemailaddress'};authentication=$authP}}
+$in3.Get_Zendesk_token = [ordered]@{runAfter=[ordered]@{Get_agent=@('Succeeded')};type='Http';inputs=[ordered]@{method='POST';uri="$base/oauth/tokens";headers=[ordered]@{'Content-Type'='application/json';Accept='application/json'};body=[ordered]@{grant_type='client_credentials';client_id=('@parameters(' + $q + $pCid + $q + ')');client_secret=('@parameters(' + $q + $pSec + $q + ')');scope='read write'}}}
+$in3.Search_Zendesk_agent = [ordered]@{runAfter=[ordered]@{Get_Zendesk_token=@('Succeeded')};type='Http';inputs=[ordered]@{method='GET';uri="$base/api/v2/users/search.json?query=email:@{encodeUriComponent(body('Get_agent')?['internalemailaddress'])}";headers=[ordered]@{Accept='application/json';Authorization=$bearer}}}
+$tagBody = [ordered]@{tags=@('d365cc-ring')}
+$ringBranch = [ordered]@{Add_ring_tag=[ordered]@{runAfter=@{};type='Http';inputs=[ordered]@{method='PUT';uri=$tagUrl;headers=$hdr;body=$tagBody}}}
+$clearBranch = [ordered]@{Remove_ring_tag=[ordered]@{runAfter=@{};type='Http';inputs=[ordered]@{method='DELETE';uri=$tagUrl;headers=$hdr;body=$tagBody}}}
+$ringExpr = "@and(not(equals(body('Get_conversation')?['msdyn_activeagentassignedon'], null)), not(equals(body('Get_conversation')?['msdyn_isagentaccepted'], true)), not(equals(body('Get_conversation')?['msdyn_isabandoned'], true)), not(equals(body('Get_conversation')?['statuscode'], 4)), not(equals(body('Get_conversation')?['statuscode'], 5)))"
+$in3.If_agent_found = [ordered]@{runAfter=[ordered]@{Search_Zendesk_agent=@('Succeeded')};type='If';expression=[ordered]@{and=@(@{greater=@(("@length(body('Search_Zendesk_agent')?['users'])"),0)})};actions=[ordered]@{If_ringing=[ordered]@{runAfter=@{};type='If';expression=[ordered]@{and=@(@{equals=@($ringExpr,$true)})};actions=$ringBranch;else=@{actions=$clearBranch}}};else=@{actions=@{}}}
+$a3.If_voice_call_with_agent = [ordered]@{runAfter=[ordered]@{Get_conversation=@('Succeeded')};type='If';expression=[ordered]@{and=@(@{equals=@("@string(body('Get_conversation')?['msdyn_channel'])",'192440000')},@{not=@{equals=@("@coalesce(body('Get_conversation')?['_msdyn_activeagentid_value'], '')",'')}})};actions=$in3;else=@{actions=@{}}}
+$trig3 = [ordered]@{When_a_voice_call_changes=[ordered]@{type='OpenApiConnectionWebhook';inputs=[ordered]@{host=(Hst 'SubscribeWebhookTrigger');parameters=[ordered]@{'subscriptionRequest/message'=4;'subscriptionRequest/entityname'='msdyn_ocliveworkitem';'subscriptionRequest/scope'=4;'subscriptionRequest/filteringattributes'='msdyn_activeagentassignedon,msdyn_isagentaccepted,msdyn_isabandoned,statuscode';'subscriptionRequest/filterexpression'='msdyn_activeagentassignedon ne null or msdyn_isabandoned eq true or statuscode eq 4 or statuscode eq 5'};authentication=$authP}}}
+$params3 = [ordered]@{'$connections'=[ordered]@{defaultValue=@{};type='Object'};'$authentication'=[ordered]@{defaultValue=@{};type='SecureObject'}}
+$params3[$pSub]=EnvP $pSub 'cczd_ZendeskSubdomain'; $params3[$pCid]=EnvP $pCid 'cczd_ZendeskClientId'; $params3[$pSec]=EnvP $pSec 'cczd_ZendeskClientSecret'
+$def3 = [ordered]@{'$schema'='https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#';contentVersion='1.0.0.0';parameters=$params3;triggers=$trig3;actions=$a3;outputs=@{}}
+$flow3 = [ordered]@{properties=[ordered]@{connectionReferences=[ordered]@{shared_commondataserviceforapps=[ordered]@{runtimeSource='embedded';connection=@{connectionReferenceLogicalName='cczd_dataverse'};api=@{name='shared_commondataserviceforapps'}}};definition=$def3};schemaVersion='1.0.0.0'}
+$wf3File = "D365ContactCenter-SignalringingcalltoZendesk-$($wf3Id.ToUpper()).json"
+[IO.File]::WriteAllText("$src\Workflows\$wf3File", ($flow3 | ConvertTo-Json -Depth 40), (New-Object Text.UTF8Encoding $false))
 $zip = $out; if(Test-Path $zip){Remove-Item $zip}
-Add-Type -A System.IO.Compression.FileSystem
+Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
 $fs=[IO.File]::Create($zip); $za=New-Object IO.Compression.ZipArchive($fs,[IO.Compression.ZipArchiveMode]::Create)
 Get-ChildItem $src -Recurse -File | % { $rel=$_.FullName.Substring($src.Length+1).Replace('\','/'); $e=$za.CreateEntry($rel); $s=$e.Open(); $b=[IO.File]::ReadAllBytes($_.FullName); $s.Write($b,0,$b.Length); $s.Dispose() }
 $za.Dispose(); $fs.Dispose()

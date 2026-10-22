@@ -37,6 +37,12 @@
       <LocalizedNames><LocalizedName languagecode="1033" description="D365 Contact Center - Add call summary to Zendesk ticket when a call ends" /></LocalizedNames>
       <Descriptions><Description languagecode="1033" description="When a voice conversation ends, adds the call metrics, AI quality score and a recording and transcript link to the Zendesk ticket." /></Descriptions>
     </Workflow>
+  <Workflow WorkflowId="{3c9a7e52-6b18-4d0f-a5e3-8f1b2d4c6a70}" Name="D365 Contact Center - Signal ringing call to Zendesk" Description="While a voice call rings for an agent, tags the matching Zendesk agent user (d365cc-ring) so the Zendesk app can show an alert; removed on accept, drop or end.">
+      <JsonFileName>/Workflows/D365ContactCenter-SignalringingcalltoZendesk-3C9A7E52-6B18-4D0F-A5E3-8F1B2D4C6A70.json</JsonFileName>
+      <Type>1</Type><Subprocess>0</Subprocess><Category>5</Category><Mode>0</Mode><Scope>4</Scope><OnDemand>0</OnDemand><TriggerOnCreate>0</TriggerOnCreate><TriggerOnDelete>0</TriggerOnDelete><AsyncAutodelete>0</AsyncAutodelete><SyncWorkflowLogOnFailure>0</SyncWorkflowLogOnFailure><StateCode>0</StateCode><StatusCode>1</StatusCode><RunAs>1</RunAs><IsTransacted>1</IsTransacted><IntroducedVersion>1.2.0.0</IntroducedVersion><IsCustomizable>1</IsCustomizable><BusinessProcessType>0</BusinessProcessType><IsCustomProcessingStepAllowedForOtherPublishers>1</IsCustomProcessingStepAllowedForOtherPublishers><ModernFlowType>0</ModernFlowType><PrimaryEntity>none</PrimaryEntity>
+      <LocalizedNames><LocalizedName languagecode="1033" description="D365 Contact Center - Signal ringing call to Zendesk" /></LocalizedNames>
+      <Descriptions><Description languagecode="1033" description="While a voice call rings for an agent, tags the matching Zendesk agent user (d365cc-ring) so the Zendesk app can show an alert." /></Descriptions>
+    </Workflow>
   </Workflows>
   <FieldSecurityProfiles></FieldSecurityProfiles>
   <Templates />

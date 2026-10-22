@@ -1,225 +1,249 @@
 {
-  "properties": {
-    "connectionReferences": {
-      "shared_commondataserviceforapps": {
-        "runtimeSource": "embedded",
-        "connection": {
-          "connectionReferenceLogicalName": "cczd_dataverse"
-        },
-        "api": {
-          "name": "shared_commondataserviceforapps"
-        }
-      }
-    },
-    "definition": {
-      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-      "contentVersion": "1.0.0.0",
-      "parameters": {
-        "$connections": {
-          "defaultValue": {},
-          "type": "Object"
-        },
-        "$authentication": {
-          "defaultValue": {},
-          "type": "SecureObject"
-        },
-        "Zendesk Subdomain (cczd_ZendeskSubdomain)": {
-          "defaultValue": "",
-          "type": "String",
-          "metadata": {
-            "schemaName": "cczd_ZendeskSubdomain"
-          }
-        },
-        "Zendesk OAuth Client ID (cczd_ZendeskClientId)": {
-          "defaultValue": "",
-          "type": "String",
-          "metadata": {
-            "schemaName": "cczd_ZendeskClientId"
-          }
-        },
-        "Zendesk OAuth Client Secret (cczd_ZendeskClientSecret)": {
-          "defaultValue": "",
-          "type": "String",
-          "metadata": {
-            "schemaName": "cczd_ZendeskClientSecret"
-          }
-        }
-      },
-      "triggers": {
-        "Every_minute": {
-          "type": "Recurrence",
-          "recurrence": {
-            "frequency": "Minute",
-            "interval": 1
-          }
-        }
-      },
-      "actions": {
-        "List_accepted_voice_calls": {
-          "runAfter": {},
-          "type": "OpenApiConnection",
-          "inputs": {
-            "host": {
-              "connectionName": "shared_commondataserviceforapps",
-              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
-              "operationId": "ListRecords"
-            },
-            "parameters": {
-              "entityName": "msdyn_ocliveworkitems",
-              "$select": "subject,msdyn_createdon,msdyn_activeagentassignedon,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_customer_value,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value",
-              "$filter": "msdyn_channel eq '192440000' and msdyn_activeagentassignedon ne null and createdon ge @{addMinutes(utcNow(), -30)}",
-              "$top": 20
-            },
-            "authentication": "@parameters('$authentication')"
-          }
-        },
-        "Get_Zendesk_token": {
-          "runAfter": {
-            "List_accepted_voice_calls": [
-              "Succeeded"
-            ]
-          },
-          "type": "Http",
-          "inputs": {
-            "method": "POST",
-            "uri": "https://@{parameters('Zendesk Subdomain (cczd_ZendeskSubdomain)')}.zendesk.com/oauth/tokens",
-            "headers": {
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            },
-            "body": {
-              "grant_type": "client_credentials",
-              "client_id": "@parameters('Zendesk OAuth Client ID (cczd_ZendeskClientId)')",
-              "client_secret": "@parameters('Zendesk OAuth Client Secret (cczd_ZendeskClientSecret)')",
-              "scope": "read write"
-            }
-          }
-        },
-        "For_each_call": {
-          "runAfter": {
-            "Get_Zendesk_token": [
-              "Succeeded"
-            ]
-          },
-          "type": "Foreach",
-          "foreach": "@outputs('List_accepted_voice_calls')?['body/value']",
-          "actions": {
-            "Find_existing_ticket": {
-              "runAfter": {},
-              "type": "Http",
-              "inputs": {
-                "method": "GET",
-                "uri": "https://@{parameters('Zendesk Subdomain (cczd_ZendeskSubdomain)')}.zendesk.com/api/v2/tickets.json?external_id=@{items('For_each_call')?['activityid']}",
-                "headers": {
-                  "Accept": "application/json",
-                  "Authorization": "Bearer @{body('Get_Zendesk_token')?['access_token']}"
-                }
-              }
-            },
-            "Check_new_call": {
-              "runAfter": {
-                "Find_existing_ticket": [
-                  "Succeeded"
-                ]
-              },
-              "type": "If",
-              "expression": {
-                "and": [
-                  {
-                    "equals": [
-                      "@length(body('Find_existing_ticket')?['tickets'])",
-                      0
-                    ]
-                  }
-                ]
-              },
-              "actions": {
-                "Get_customer": {
-                  "runAfter": {},
-                  "type": "OpenApiConnection",
-                  "inputs": {
-                    "host": {
-                      "connectionName": "shared_commondataserviceforapps",
-                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
-                      "operationId": "ListRecords"
-                    },
-                    "parameters": {
-                      "entityName": "contacts",
-                      "$select": "fullname,mobilephone,telephone1,emailaddress1",
-                      "$filter": "contactid eq '@{coalesce(items('For_each_call')?['_msdyn_customer_value'], '00000000-0000-0000-0000-000000000000')}'",
-                      "$top": 1
-                    },
-                    "authentication": "@parameters('$authentication')"
-                  }
-                },
-                "Upsert_requester": {
-                  "runAfter": {
-                    "Get_customer": [
-                      "Succeeded",
-                      "Failed"
-                    ]
-                  },
-                  "type": "Http",
-                  "inputs": {
-                    "method": "POST",
-                    "uri": "https://@{parameters('Zendesk Subdomain (cczd_ZendeskSubdomain)')}.zendesk.com/api/v2/users/create_or_update.json",
-                    "headers": {
-                      "Content-Type": "application/json",
-                      "Accept": "application/json",
-                      "Authorization": "Bearer @{body('Get_Zendesk_token')?['access_token']}"
-                    },
-                    "body": {
-                      "user": {
-                        "name": "@coalesce(first(body('Get_customer')?['value'])?['fullname'], 'Unknown caller')",
-                        "email": "@coalesce(first(body('Get_customer')?['value'])?['emailaddress1'], 'unknown.caller@example.com')",
-                        "phone": "@coalesce(first(body('Get_customer')?['value'])?['mobilephone'], first(body('Get_customer')?['value'])?['telephone1'])",
-                        "role": "end-user"
-                      }
-                    }
-                  }
-                },
-                "Create_Zendesk_ticket": {
-                  "runAfter": {
-                    "Upsert_requester": [
-                      "Succeeded"
-                    ]
-                  },
-                  "type": "Http",
-                  "inputs": {
-                    "method": "POST",
-                    "uri": "https://@{parameters('Zendesk Subdomain (cczd_ZendeskSubdomain)')}.zendesk.com/api/v2/tickets.json",
-                    "headers": {
-                      "Content-Type": "application/json",
-                      "Accept": "application/json",
-                      "Authorization": "Bearer @{body('Get_Zendesk_token')?['access_token']}"
-                    },
-                    "body": {
-                      "ticket": {
-                        "subject": "Inbound call @{items('For_each_call')?['subject']}",
-                        "comment": {
-                          "body": "Inbound voice call received @{items('For_each_call')?['msdyn_createdon']}.\nQueue: @{items('For_each_call')?['_msdyn_cdsqueueid_value@OData.Community.Display.V1.FormattedValue']}\nAgent: @{items('For_each_call')?['_msdyn_activeagentid_value@OData.Community.Display.V1.FormattedValue']}\nD365 conversation: @{items('For_each_call')?['activityid']}",
-                          "public": false
-                        },
-                        "requester_id": "@body('Upsert_requester')?['user']?['id']",
-                        "external_id": "@{items('For_each_call')?['activityid']}",
-                        "tags": [
-                          "d365cc",
-                          "voice"
-                        ]
-                      }
-                    }
-                  }
-                }
-              },
-              "else": {
-                "actions": {}
-              }
-            }
-          }
-        }
-      },
-      "outputs": {}
-    }
-  },
-  "schemaVersion": "1.0.0.0"
+    "properties":  {
+                       "connectionReferences":  {
+                                                    "shared_commondataserviceforapps":  {
+                                                                                            "runtimeSource":  "embedded",
+                                                                                            "connection":  {
+                                                                                                               "connectionReferenceLogicalName":  "cczd_dataverse"
+                                                                                                           },
+                                                                                            "api":  {
+                                                                                                        "name":  "shared_commondataserviceforapps"
+                                                                                                    }
+                                                                                        }
+                                                },
+                       "definition":  {
+                                          "$schema":  "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                                          "contentVersion":  "1.0.0.0",
+                                          "parameters":  {
+                                                             "$connections":  {
+                                                                                  "defaultValue":  {
+
+                                                                                                   },
+                                                                                  "type":  "Object"
+                                                                              },
+                                                             "$authentication":  {
+                                                                                     "defaultValue":  {
+
+                                                                                                      },
+                                                                                     "type":  "SecureObject"
+                                                                                 },
+                                                             "Zendesk Subdomain (cczd_ZendeskSubdomain)":  {
+                                                                                                               "defaultValue":  "",
+                                                                                                               "type":  "String",
+                                                                                                               "metadata":  {
+                                                                                                                                "schemaName":  "cczd_ZendeskSubdomain"
+                                                                                                                            }
+                                                                                                           },
+                                                             "Zendesk OAuth Client ID (cczd_ZendeskClientId)":  {
+                                                                                                                    "defaultValue":  "",
+                                                                                                                    "type":  "String",
+                                                                                                                    "metadata":  {
+                                                                                                                                     "schemaName":  "cczd_ZendeskClientId"
+                                                                                                                                 }
+                                                                                                                },
+                                                             "Zendesk OAuth Client Secret (cczd_ZendeskClientSecret)":  {
+                                                                                                                            "defaultValue":  "",
+                                                                                                                            "type":  "String",
+                                                                                                                            "metadata":  {
+                                                                                                                                             "schemaName":  "cczd_ZendeskClientSecret"
+                                                                                                                                         }
+                                                                                                                        }
+                                                         },
+                                          "triggers":  {
+                                                           "When_an_agent_accepts_a_voice_call":  {
+                                                                                                      "type":  "OpenApiConnectionWebhook",
+                                                                                                      "inputs":  {
+                                                                                                                     "host":  {
+                                                                                                                                  "connectionName":  "shared_commondataserviceforapps",
+                                                                                                                                  "apiId":  "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                                                                                                  "operationId":  "SubscribeWebhookTrigger"
+                                                                                                                              },
+                                                                                                                     "parameters":  {
+                                                                                                                                        "subscriptionRequest/message":  3,
+                                                                                                                                        "subscriptionRequest/entityname":  "msdyn_ocliveworkitem",
+                                                                                                                                        "subscriptionRequest/scope":  4,
+                                                                                                                                        "subscriptionRequest/filteringattributes":  "msdyn_isagentaccepted",
+                                                                                                                                        "subscriptionRequest/filterexpression":  "msdyn_isagentaccepted eq true"
+                                                                                                                                    },
+                                                                                                                     "authentication":  "@parameters(\u0027$authentication\u0027)"
+                                                                                                                 }
+                                                                                                  }
+                                                       },
+                                          "actions":  {
+                                                          "Get_conversation":  {
+                                                                                   "runAfter":  {
+
+                                                                                                },
+                                                                                   "type":  "OpenApiConnection",
+                                                                                   "inputs":  {
+                                                                                                  "host":  {
+                                                                                                               "connectionName":  "shared_commondataserviceforapps",
+                                                                                                               "apiId":  "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                                                                               "operationId":  "GetItem"
+                                                                                                           },
+                                                                                                  "parameters":  {
+                                                                                                                     "entityName":  "msdyn_ocliveworkitems",
+                                                                                                                     "recordId":  "@triggerOutputs()?[\u0027body/activityid\u0027]",
+                                                                                                                     "$select":  "msdyn_channel,subject,msdyn_createdon,msdyn_activeagentassignedon,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_customer_value,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value"
+                                                                                                                 },
+                                                                                                  "authentication":  "@parameters(\u0027$authentication\u0027)"
+                                                                                              }
+                                                                               },
+                                                          "Get_Zendesk_token":  {
+                                                                                    "runAfter":  {
+                                                                                                     "Get_conversation":  [
+                                                                                                                              "Succeeded"
+                                                                                                                          ]
+                                                                                                 },
+                                                                                    "type":  "Http",
+                                                                                    "inputs":  {
+                                                                                                   "method":  "POST",
+                                                                                                   "uri":  "https://@{parameters(\u0027Zendesk Subdomain (cczd_ZendeskSubdomain)\u0027)}.zendesk.com/oauth/tokens",
+                                                                                                   "headers":  {
+                                                                                                                   "Content-Type":  "application/json",
+                                                                                                                   "Accept":  "application/json"
+                                                                                                               },
+                                                                                                   "body":  {
+                                                                                                                "grant_type":  "client_credentials",
+                                                                                                                "client_id":  "@parameters(\u0027Zendesk OAuth Client ID (cczd_ZendeskClientId)\u0027)",
+                                                                                                                "client_secret":  "@parameters(\u0027Zendesk OAuth Client Secret (cczd_ZendeskClientSecret)\u0027)",
+                                                                                                                "scope":  "read write"
+                                                                                                            }
+                                                                                               }
+                                                                                },
+                                                          "For_each_call":  {
+                                                                                "runAfter":  {
+                                                                                                 "Get_Zendesk_token":  [
+                                                                                                                           "Succeeded"
+                                                                                                                       ]
+                                                                                             },
+                                                                                "type":  "Foreach",
+                                                                                "foreach":  "@if(equals(string(body(\u0027Get_conversation\u0027)?[\u0027msdyn_channel\u0027]), \u0027192440000\u0027), createArray(body(\u0027Get_conversation\u0027)), createArray())",
+                                                                                "actions":  {
+                                                                                                "Find_existing_ticket":  {
+                                                                                                                             "runAfter":  {
+
+                                                                                                                                          },
+                                                                                                                             "type":  "Http",
+                                                                                                                             "inputs":  {
+                                                                                                                                            "method":  "GET",
+                                                                                                                                            "uri":  "https://@{parameters(\u0027Zendesk Subdomain (cczd_ZendeskSubdomain)\u0027)}.zendesk.com/api/v2/tickets.json?external_id=@{items(\u0027For_each_call\u0027)?[\u0027activityid\u0027]}",
+                                                                                                                                            "headers":  {
+                                                                                                                                                            "Accept":  "application/json",
+                                                                                                                                                            "Authorization":  "Bearer @{body(\u0027Get_Zendesk_token\u0027)?[\u0027access_token\u0027]}"
+                                                                                                                                                        }
+                                                                                                                                        }
+                                                                                                                         },
+                                                                                                "Check_new_call":  {
+                                                                                                                       "runAfter":  {
+                                                                                                                                        "Find_existing_ticket":  [
+                                                                                                                                                                     "Succeeded"
+                                                                                                                                                                 ]
+                                                                                                                                    },
+                                                                                                                       "type":  "If",
+                                                                                                                       "expression":  {
+                                                                                                                                          "and":  [
+                                                                                                                                                      {
+                                                                                                                                                          "equals":  [
+                                                                                                                                                                         "@length(body(\u0027Find_existing_ticket\u0027)?[\u0027tickets\u0027])",
+                                                                                                                                                                         0
+                                                                                                                                                                     ]
+                                                                                                                                                      }
+                                                                                                                                                  ]
+                                                                                                                                      },
+                                                                                                                       "actions":  {
+                                                                                                                                       "Get_customer":  {
+                                                                                                                                                            "runAfter":  {
+
+                                                                                                                                                                         },
+                                                                                                                                                            "type":  "OpenApiConnection",
+                                                                                                                                                            "inputs":  {
+                                                                                                                                                                           "host":  {
+                                                                                                                                                                                        "connectionName":  "shared_commondataserviceforapps",
+                                                                                                                                                                                        "apiId":  "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                                                                                                                                                        "operationId":  "ListRecords"
+                                                                                                                                                                                    },
+                                                                                                                                                                           "parameters":  {
+                                                                                                                                                                                              "entityName":  "contacts",
+                                                                                                                                                                                              "$select":  "fullname,mobilephone,telephone1,emailaddress1",
+                                                                                                                                                                                              "$filter":  "contactid eq \u0027@{coalesce(items(\u0027For_each_call\u0027)?[\u0027_msdyn_customer_value\u0027], \u002700000000-0000-0000-0000-000000000000\u0027)}\u0027",
+                                                                                                                                                                                              "$top":  1
+                                                                                                                                                                                          },
+                                                                                                                                                                           "authentication":  "@parameters(\u0027$authentication\u0027)"
+                                                                                                                                                                       }
+                                                                                                                                                        },
+                                                                                                                                       "Upsert_requester":  {
+                                                                                                                                                                "runAfter":  {
+                                                                                                                                                                                 "Get_customer":  [
+                                                                                                                                                                                                      "Succeeded",
+                                                                                                                                                                                                      "Failed"
+                                                                                                                                                                                                  ]
+                                                                                                                                                                             },
+                                                                                                                                                                "type":  "Http",
+                                                                                                                                                                "inputs":  {
+                                                                                                                                                                               "method":  "POST",
+                                                                                                                                                                               "uri":  "https://@{parameters(\u0027Zendesk Subdomain (cczd_ZendeskSubdomain)\u0027)}.zendesk.com/api/v2/users/create_or_update.json",
+                                                                                                                                                                               "headers":  {
+                                                                                                                                                                                               "Content-Type":  "application/json",
+                                                                                                                                                                                               "Accept":  "application/json",
+                                                                                                                                                                                               "Authorization":  "Bearer @{body(\u0027Get_Zendesk_token\u0027)?[\u0027access_token\u0027]}"
+                                                                                                                                                                                           },
+                                                                                                                                                                               "body":  {
+                                                                                                                                                                                            "user":  {
+                                                                                                                                                                                                         "name":  "@coalesce(first(body(\u0027Get_customer\u0027)?[\u0027value\u0027])?[\u0027fullname\u0027], \u0027Unknown caller\u0027)",
+                                                                                                                                                                                                         "email":  "@coalesce(first(body(\u0027Get_customer\u0027)?[\u0027value\u0027])?[\u0027emailaddress1\u0027], \u0027unknown.caller@example.com\u0027)",
+                                                                                                                                                                                                         "phone":  "@coalesce(first(body(\u0027Get_customer\u0027)?[\u0027value\u0027])?[\u0027mobilephone\u0027], first(body(\u0027Get_customer\u0027)?[\u0027value\u0027])?[\u0027telephone1\u0027])",
+                                                                                                                                                                                                         "role":  "end-user"
+                                                                                                                                                                                                     }
+                                                                                                                                                                                        }
+                                                                                                                                                                           }
+                                                                                                                                                            },
+                                                                                                                                       "Create_Zendesk_ticket":  {
+                                                                                                                                                                     "runAfter":  {
+                                                                                                                                                                                      "Upsert_requester":  [
+                                                                                                                                                                                                               "Succeeded"
+                                                                                                                                                                                                           ]
+                                                                                                                                                                                  },
+                                                                                                                                                                     "type":  "Http",
+                                                                                                                                                                     "inputs":  {
+                                                                                                                                                                                    "method":  "POST",
+                                                                                                                                                                                    "uri":  "https://@{parameters(\u0027Zendesk Subdomain (cczd_ZendeskSubdomain)\u0027)}.zendesk.com/api/v2/tickets.json",
+                                                                                                                                                                                    "headers":  {
+                                                                                                                                                                                                    "Content-Type":  "application/json",
+                                                                                                                                                                                                    "Accept":  "application/json",
+                                                                                                                                                                                                    "Authorization":  "Bearer @{body(\u0027Get_Zendesk_token\u0027)?[\u0027access_token\u0027]}"
+                                                                                                                                                                                                },
+                                                                                                                                                                                    "body":  {
+                                                                                                                                                                                                 "ticket":  {
+                                                                                                                                                                                                                "subject":  "Inbound call @{items(\u0027For_each_call\u0027)?[\u0027subject\u0027]}",
+                                                                                                                                                                                                                "comment":  {
+                                                                                                                                                                                                                                "body":  "Inbound voice call received @{items(\u0027For_each_call\u0027)?[\u0027msdyn_createdon\u0027]}.\nQueue: @{items(\u0027For_each_call\u0027)?[\u0027_msdyn_cdsqueueid_value@OData.Community.Display.V1.FormattedValue\u0027]}\nAgent: @{items(\u0027For_each_call\u0027)?[\u0027_msdyn_activeagentid_value@OData.Community.Display.V1.FormattedValue\u0027]}\nD365 conversation: @{items(\u0027For_each_call\u0027)?[\u0027activityid\u0027]}",
+                                                                                                                                                                                                                                "public":  false
+                                                                                                                                                                                                                            },
+                                                                                                                                                                                                                "requester_id":  "@body(\u0027Upsert_requester\u0027)?[\u0027user\u0027]?[\u0027id\u0027]",
+                                                                                                                                                                                                                "external_id":  "@{items(\u0027For_each_call\u0027)?[\u0027activityid\u0027]}",
+                                                                                                                                                                                                                "tags":  [
+                                                                                                                                                                                                                             "d365cc",
+                                                                                                                                                                                                                             "voice"
+                                                                                                                                                                                                                         ]
+                                                                                                                                                                                                            }
+                                                                                                                                                                                             }
+                                                                                                                                                                                }
+                                                                                                                                                                 }
+                                                                                                                                   },
+                                                                                                                       "else":  {
+                                                                                                                                    "actions":  {
+
+                                                                                                                                                }
+                                                                                                                                }
+                                                                                                                   }
+                                                                                            }
+                                                                            }
+                                                      },
+                                          "outputs":  {
+
+                                                      }
+                                      }
+                   },
+    "schemaVersion":  "1.0.0.0"
 }

@@ -44,6 +44,35 @@ client.get('currentUser.id').then(function (d) {
   poll();
   setInterval(poll, POLL_MS);
 });
-</script>
+
+// Ring alert: the D365 flow "Signal ringing call to Zendesk" tags this agent user with d365cc-ring while a call rings.
+// Show a sticky banner (repeated) and open the Dynamics 365 panel until the tag is removed (accepted, dropped or ended).
+var RING_TAG = 'd365cc-ring', ringing = false, ringTimer = null, ringStop = null;
+function ringAlert() {
+  client.invoke('notify', 'Incoming call. Open the Dynamics 365 phone in the top bar to answer.', 'alert', { sticky: true });
+  client.get('instances').then(function (d) {
+    var ins = d.instances || {};
+    Object.keys(ins).forEach(function (k) { if (ins[k].location === 'top_bar') client.instance(k).invoke('popover', 'show'); });
+  }, function () {});
+}
+function startRing() {
+  if (ringing) return;
+  ringing = true;
+  ringAlert();
+  ringTimer = setInterval(ringAlert, 8000);
+  ringStop = setTimeout(stopRing, 90000);
+  try {
+    if (window.Notification && Notification.permission === 'granted') new Notification('Incoming call', { body: 'A Dynamics 365 Contact Center call is ringing.', tag: 'd365cc-ring', requireInteraction: true });
+  } catch (e) { }
+}
+function stopRing() { if (ringTimer) clearInterval(ringTimer); if (ringStop) clearTimeout(ringStop); ringTimer = ringStop = null; ringing = false; }
+function pollRing() {
+  if (!me) return;
+  client.request({ url: '/api/v2/users/' + me + '.json' }).then(function (res) {
+    var on = ((res.user && res.user.tags) || []).indexOf(RING_TAG) >= 0;
+    if (on) startRing(); else stopRing();
+  }, function () {});
+}
+setInterval(pollRing, 3000);</script>
 </body></html>
 
