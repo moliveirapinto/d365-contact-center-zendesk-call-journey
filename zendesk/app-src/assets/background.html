@@ -47,7 +47,7 @@ client.get('currentUser.id').then(function (d) {
 
 // Ring alert: the D365 flow "Signal ringing call to Zendesk" tags this agent user with d365cc-ring while a call rings.
 // Show a sticky banner (repeated) and open the Dynamics 365 panel until the tag is removed (accepted, dropped or ended).
-var RING_TAG = 'd365cc-ring', ringing = false, ringTimer = null, ringStop = null;
+var RING_TAG = 'd365cc-ring', ringing = false, ringSpent = false, ringTimer = null, ringStop = null;
 function ringAlert() {
   client.invoke('notify', 'Incoming call. Open the Dynamics 365 phone in the top bar to answer.', 'alert', { sticky: true });
   client.get('instances').then(function (d) {
@@ -60,17 +60,17 @@ function startRing() {
   ringing = true;
   ringAlert();
   ringTimer = setInterval(ringAlert, 8000);
-  ringStop = setTimeout(stopRing, 90000);
+  ringStop = setTimeout(function () { stopRing(true); }, 90000);
   try {
     if (window.Notification && Notification.permission === 'granted') new Notification('Incoming call', { body: 'A Dynamics 365 Contact Center call is ringing.', tag: 'd365cc-ring', requireInteraction: true });
   } catch (e) { }
 }
-function stopRing() { if (ringTimer) clearInterval(ringTimer); if (ringStop) clearTimeout(ringStop); ringTimer = ringStop = null; ringing = false; }
+function stopRing(timedOut) { if (ringTimer) clearInterval(ringTimer); if (ringStop) clearTimeout(ringStop); ringTimer = ringStop = null; ringing = false; if (timedOut === true) ringSpent = true; }
 function pollRing() {
   if (!me) return;
-  client.request({ url: '/api/v2/users/' + me + '.json' }).then(function (res) {
-    var on = ((res.user && res.user.tags) || []).indexOf(RING_TAG) >= 0;
-    if (on) startRing(); else stopRing();
+  client.request({ url: '/api/v2/users/' + me + '/tags.json?t=' + Date.now(), cache: false }).then(function (res) {
+    var on = (res.tags || []).indexOf(RING_TAG) >= 0;
+    if (on) { if (!ringSpent) startRing(); } else { ringSpent = false; stopRing(); }
   }, function () {});
 }
 setInterval(pollRing, 3000);</script>
