@@ -82,7 +82,8 @@ $ringYes.Target_users = [ordered]@{runAfter=[ordered]@{Search_Zendesk_agent=@('S
 $addTag = [ordered]@{Add_ring_tag=[ordered]@{runAfter=@{};type='Http';inputs=[ordered]@{method='PUT';uri="$base/api/v2/users/@{items('For_each_target')?['id']}/tags.json";headers=$hdr;body=$tagBody}}}
 $ringYes.If_human_agent = [ordered]@{runAfter=[ordered]@{Target_users=@('Succeeded')};type='If';expression=[ordered]@{and=@(@{equals=@("@body('Get_agent')?['accessmode']",0)})};actions=[ordered]@{For_each_target=[ordered]@{runAfter=@{};type='Foreach';foreach="@outputs('Target_users')";actions=$addTag}};else=@{actions=@{}}}
 $clearTag = [ordered]@{Remove_ring_tag=[ordered]@{runAfter=@{};type='Http';inputs=[ordered]@{method='DELETE';uri="$base/api/v2/users/@{items('For_each_all')?['id']}/tags.json";headers=$hdr;body=$tagBody}}}
-$ringNo = [ordered]@{For_each_all=[ordered]@{runAfter=@{};type='Foreach';foreach="@body('List_Zendesk_agents')?['users']";actions=$clearTag}}
+$doneExpr = "@or(equals(body('Get_conversation')?['msdyn_isagentaccepted'], true), equals(body('Get_conversation')?['msdyn_isabandoned'], true), equals(body('Get_conversation')?['statuscode'], 4), equals(body('Get_conversation')?['statuscode'], 5))"
+$ringNo = [ordered]@{If_call_over=[ordered]@{runAfter=@{};type='If';expression=[ordered]@{and=@(@{equals=@($doneExpr,$true)})};actions=[ordered]@{For_each_all=[ordered]@{runAfter=@{};type='Foreach';foreach="@body('List_Zendesk_agents')?['users']";actions=$clearTag}};else=@{actions=@{}}}}
 $in3 = [ordered]@{}
 $in3.Get_Zendesk_token = $tok3
 $in3.List_Zendesk_agents = [ordered]@{runAfter=[ordered]@{Get_Zendesk_token=@('Succeeded')};type='Http';inputs=[ordered]@{method='GET';uri="$base/api/v2/users.json?role[]=admin&role[]=agent";headers=[ordered]@{Accept='application/json';Authorization=$bearer}}}
