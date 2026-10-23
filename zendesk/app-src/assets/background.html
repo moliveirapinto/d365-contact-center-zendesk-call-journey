@@ -49,7 +49,6 @@ client.get('currentUser.id').then(function (d) {
 // Show a sticky banner (repeated) and open the Dynamics 365 panel until the tag is removed (accepted, dropped or ended).
 var RING_TAG = 'd365cc-ring', ringing = false, ringSpent = false, ringTimer = null, ringStop = null;
 function ringAlert() {
-  client.invoke('notify', 'Incoming call. Open the Dynamics 365 phone in the top bar to answer.', 'alert', { sticky: true });
   client.get('instances').then(function (d) {
     var ins = d.instances || {};
     Object.keys(ins).forEach(function (k) { if (ins[k].location === 'top_bar') client.instance(k).invoke('popover', 'show'); });
@@ -58,6 +57,7 @@ function ringAlert() {
 function startRing() {
   if (ringing) return;
   ringing = true;
+  client.invoke('notify', 'Incoming call. Open the Dynamics 365 phone in the top bar to answer.', 'alert', { sticky: true });
   ringAlert();
   ringTimer = setInterval(ringAlert, 8000);
   ringStop = setTimeout(function () { stopRing(true); }, 90000);
